@@ -1,9 +1,16 @@
 #define EXPORT_SYMTAB
-#include <pthread.h>
 #include <linux/rwlock.h>
-#include <linux/rwlock_api_smp.h>
 #include <linux/slab.h>
 
+
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Alessandro Amici");
+MODULE_DESCRIPTION("Syscalls");
+
+
+
+#define MODNAME "SYSCALLS"
 
 #define TAGS 256
 #define LEVELS 32
@@ -29,4 +36,4 @@ struct tag_descriptors_header tag_descriptors_header_array;
 struct tag_descriptor_info tag_descriptors_info_array[TAGS];
 
 
-int initialize_tag_service_structures(void)
+int initialize_tag_service_structures(void);

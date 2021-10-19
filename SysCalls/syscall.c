@@ -3,7 +3,7 @@
 
 int initialize_tag_service_structures(void){
 
-    tag_descriptors_header_array = kzalloc(sizeof(tag_descriptors_header), GFP_KERNEL);
+    *tag_descriptors_header_array = kzalloc(sizeof(tag_descriptors_header), GFP_KERNEL);
     tag_descriptors_header_array -> tag_descriptors_header = {[0 ... (TAGS-1)] -1};
     int lock_init = rwlock_init(&(tag_descriptors_header_array -> lock));
     if(lock_init != 0){
@@ -12,7 +12,7 @@ int initialize_tag_service_structures(void){
     }
 
 
-    tag_descriptor_info_array = kzalloc(TAGS * sizeof(tag_descriptor_info), GFP_KERNEL);
+    tag_descriptors_info_array = kzalloc(TAGS * sizeof(tag_descriptor_info), GFP_KERNEL);
     for(int i=0; i< TAGS; i++){
         tag_descriptors_info_array[i] -> key = -1;
         tag_descriptors_info_array[i] -> perm = -1;
@@ -24,9 +24,6 @@ int initialize_tag_service_structures(void){
     }
 
     return 0;
-
-    
-
 
 }
 

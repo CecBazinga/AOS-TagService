@@ -189,8 +189,9 @@ int init_module(void) {
 		return -1;
 	}
 
-	printk("%d", tag_descriptors_header_array -> tag_descriptors_header[128])
-	printk("key is %d and perm is %d", tag_descriptors_info_array[128] -> key,tag_descriptors_info_array[128] -> perm)
+	//printk("%d", tag_descriptors_header_array -> tag_descriptors_header[128])
+	//printk("key is %d and perm is %d", tag_descriptors_info_array[128] -> key,tag_descriptors_info_array[128] -> perm);
+
 	int i,j;
 		
         printk("%s: initializing\n",MODNAME);
