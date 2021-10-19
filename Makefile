@@ -1,5 +1,5 @@
 obj-m += the_usctm.o
-the_usctm-objs += usctm.o ./lib/vtpmo.o
+the_usctm-objs += ./SyscallTableDiscoveryAndManagment/usctm.o ./SyscallTableDiscoveryAndManagment/lib/vtpmo.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules 

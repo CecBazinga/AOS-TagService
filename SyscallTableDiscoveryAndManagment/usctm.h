@@ -20,6 +20,7 @@
 #include <asm/apic.h>
 #include <linux/syscalls.h>
 #include "include/vtpmo.h"
+#include "../SysCalls/syscall.h"
 
 
 
@@ -30,10 +31,6 @@ MODULE_DESCRIPTION("USCTM");
 
 
 #define MODNAME "USCTM"
-
-
-extern int sys_vtpmo(unsigned long vaddr);
-
 
 #define ADDRESS_MASK 0xfffffffffffff000//to migrate
 
@@ -64,3 +61,7 @@ module_param(sys_ni_syscall_address, ulong, 0660);
 
 module_param_array(free_entries,int,NULL,0660);//default array size already known - here we expose what entries are free
 
+
+
+extern int sys_vtpmo(unsigned long vaddr);
+extern int initialize_tag_service_structures(void);
