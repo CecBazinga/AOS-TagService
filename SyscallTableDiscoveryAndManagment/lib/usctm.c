@@ -19,7 +19,13 @@
 * @date November 22, 2020
 */
 
-#include "usctm.h"
+#include "../include/usctm.h"
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Francesco Quaglia <framcesco.quaglia@uniroma2.it>");
+MODULE_DESCRIPTION("USCTM");
+
+#define MODNAME "USCTM"
 
 
 

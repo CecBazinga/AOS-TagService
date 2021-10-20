@@ -19,18 +19,9 @@
 #include <asm/cacheflush.h>
 #include <asm/apic.h>
 #include <linux/syscalls.h>
-#include "include/vtpmo.h"
-#include "../SysCalls/syscall.h"
+#include "vtpmo.h"
+#include "syscall.h"
 
-
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Francesco Quaglia <framcesco.quaglia@uniroma2.it>");
-MODULE_DESCRIPTION("USCTM");
-
-
-
-#define MODNAME "USCTM"
 
 #define ADDRESS_MASK 0xfffffffffffff000//to migrate
 
