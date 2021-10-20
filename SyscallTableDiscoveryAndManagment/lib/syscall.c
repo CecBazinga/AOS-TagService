@@ -6,11 +6,15 @@ MODULE_DESCRIPTION("TAG SERVICE");
 
 #define MODNAME "TAG SERVICE"
 
+int tag_descriptors_header_list[TAGS] = {[0 ... (TAGS-1)] -1};
+spinlock_t tag_descriptors_header_lock;
+
+
+
 int initialize_tag_service_structures(void){
 
 
     int i; 
-
     //tag_descriptors_info_array = kmalloc(TAGS * sizeof(struct tag_descriptor_info), GFP_KERNEL);
 
     /*
@@ -18,13 +22,13 @@ int initialize_tag_service_structures(void){
 
         tag_descriptors_header_list[i] = -1;
 
-        tag_descriptors_info_array[i].key = -1;
-        tag_descriptors_info_array[i].perm = -1;
+        //tag_descriptors_info_array[i].key = -1;
+        //tag_descriptors_info_array[i].perm = -1;
     }
-
-    printk( "tag_descriptors_header_list[0]-[128]-[255] are %d %d %d \n", tag_descriptors_header_list[0],tag_descriptors_header_list[128]
-    ,tag_descriptors_header_list[255]);
     */
+
+
+    
 
     printk( "%s : MI SONO ROTTO I COGLIONI \n", MODNAME);
     return 0;

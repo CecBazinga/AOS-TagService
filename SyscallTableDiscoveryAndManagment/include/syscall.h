@@ -7,9 +7,6 @@
 #define TAGS 256
 #define LEVELS 32
 
-extern int tag_descriptors_header_list[TAGS] ;
-extern spinlock_t tag_descriptors_header_lock;
-
 
 struct tag_descriptor_info{
 

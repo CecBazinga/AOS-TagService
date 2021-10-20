@@ -200,7 +200,7 @@ int init_module(void) {
 
 	int i,j;
 		
-        printk("%s: initializing\n",MODNAME);
+    printk("%s: initializing\n",MODNAME);
 	
 	syscall_table_finder();
 
