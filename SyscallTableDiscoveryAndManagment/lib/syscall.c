@@ -28,6 +28,7 @@ int init_tag_service(void){
         }
         tag_descriptors_info_array[i]->key = -1;
         tag_descriptors_info_array[i]->perm = -1;
+        tag_descriptors_info_array[i]->euid = -1;
     }
 
     printk("%s: Tag service structures have been initialized succesfully! \n", MODNAME);
@@ -77,6 +78,8 @@ int tag get(int key, int command, int permission){
 
     if (key == IPC_PRIVATE){
 
+        printk(KERN_ERR "%s: Macro IPC_PRIVATE value is : %d \n", MODNAME, key);
+
         if(command == OPEN){
             printk(KERN_ERR "%s: Cannot open a tag-service with IPC_PRIVATE key! \n", MODNAME);
             return -1;
@@ -96,19 +99,34 @@ int tag get(int key, int command, int permission){
                 }
             }
 
-            spin_unlock(&tag_descriptors_header_lock);
-
             // caso in cui non si hanno piu slot liberi a disposizione
             if (tag_descriptor == -1){
+                spin_unlock(&tag_descriptors_header_lock);
                 printk(KERN_ERR "%s: No more room left to instantiate new tag-services! \n", MODNAME);
                 return -1;
             }
 
 
             // inserimento dei valori della creazione all'interno della struct corrispondente al tag-descriptor ottenuto
-            if(tag_descriptors_info_array[tag_descriptor] == NULL){
+            spin_lock(&lock_array[tag_descriptor]);
 
-                //TODO alloco struttura dati e inizializzo i campi
+            if(tag_descriptors_info_array[tag_descriptor] != NULL){
+
+                spin_unlock(&lock_array[tag_descriptor]);
+                printk(KERN_ERR "%s: Error during tag service structure creation! \n", MODNAME);
+                return -1;
+                
+            }else if(tag_descriptors_info_array[tag_descriptor] == NULL){
+
+                tag_descriptors_info_array[tag_descriptor]->key = 0 ;
+                tag_descriptors_info_array[tag_descriptor]->perm = permission ;
+                tag_descriptors_info_array[tag_descriptor]->euid = get_current_user()->uid;
+
+
+                spin_unlock(&lock_array[tag_descriptor]);
+                printk(KERN_INFO "%s: Tag service correctly created with key IPC_PRIVATE and tag-descriptor : %d \n", MODNAME, tag_descriptor);
+
+                return tag_descriptor;
 
 
             }
@@ -117,10 +135,12 @@ int tag get(int key, int command, int permission){
         }
 
     }
-
+    /*
     if (key > 0){
-            //TODO open e create nel caso di chiave non privata
+            //TODO: open e create nel caso di chiave non privata
+            
     }
+    */
 
     else{
          printk(KERN_ERR "%s: Invalid key value: chose IPC_PRIVATE or an integer greater than 0! \n", MODNAME);
