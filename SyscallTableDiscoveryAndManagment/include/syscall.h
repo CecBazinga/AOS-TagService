@@ -7,14 +7,23 @@
 #define TAGS 256
 #define LEVELS 32
 
+#define IPC_PRIVATE 0
+
+#define CREATE 0
+#define OPEN 1
+
+#define PERM_NONE 0
+#define PERM_ALL 1
+
 
 struct tag_descriptor_info{
 
 	int key;          // 0 se IPC_PRIVATE oppure un intero strettamente positivo (key). -1 indica tag service disponibile
     int perm;         // 0 se utilizzabile da qualunque utente oppure è settato al EUID dell'utente creatore
-	spinlock_t lock;
 
 };
 
 
-int initialize_tag_service_structures(void);
+int test(void);
+int init_tag_service(void);
+int free_tag_service(void);

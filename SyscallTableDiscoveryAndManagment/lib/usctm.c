@@ -189,11 +189,14 @@ unprotect_memory(void)
 
 int init_module(void) {
 	
-	int res = initialize_tag_service_structures();
+	int res = init_tag_service();
 	if(res!=0){
 		printk("%s: failed to initialize_tag_service_structures\n",MODNAME);
 		return -1;
 	}
+
+	res = free_tag_service();
+	
 
 	//printk("%d", tag_descriptors_header_array -> tag_descriptors_header[128])
 	//printk("key is %d and perm is %d", tag_descriptors_info_array[128] -> key,tag_descriptors_info_array[128] -> perm);

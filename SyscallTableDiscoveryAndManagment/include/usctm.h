@@ -55,4 +55,7 @@ module_param_array(free_entries,int,NULL,0660);//default array size already know
 
 
 extern int sys_vtpmo(unsigned long vaddr);
-extern int initialize_tag_service_structures(void);
+
+extern int test(void);
+extern int init_tag_service(void);
+extern int free_tag_service(void);
