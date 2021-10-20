@@ -9,26 +9,13 @@ MODULE_DESCRIPTION("TAG SERVICE");
 int tag_descriptors_header_list[TAGS] = {[0 ... (TAGS-1)] -1};
 spinlock_t tag_descriptors_header_lock;
 
+struct tag_descriptor_info *tag_descriptors_info_array[TAGS] = { NULL };
 
 
 int initialize_tag_service_structures(void){
 
 
     int i; 
-    //tag_descriptors_info_array = kmalloc(TAGS * sizeof(struct tag_descriptor_info), GFP_KERNEL);
-
-    /*
-    for(i=0; i< TAGS; i++){
-
-        tag_descriptors_header_list[i] = -1;
-
-        //tag_descriptors_info_array[i].key = -1;
-        //tag_descriptors_info_array[i].perm = -1;
-    }
-    */
-
-
-    
 
     printk( "%s : MI SONO ROTTO I COGLIONI \n", MODNAME);
     return 0;

@@ -17,7 +17,4 @@ struct tag_descriptor_info{
 };
 
 
-//struct tag_descriptor_info *tag_descriptors_info_array[TAGS];
-
-
 int initialize_tag_service_structures(void);
