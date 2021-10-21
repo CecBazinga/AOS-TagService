@@ -181,17 +181,54 @@ int tag_get(int key, int command, int permission){
 
             for(i=0; i<TAGS ; i++){
 
-                // salvo momentaneamente il valore del primo tag-service libero se esistente
-                if (tag_descriptors_header_list[i] == -1 && tag_descriptor == -1 ){
-                    tag_descriptor = i;
-                }
-
-                //verifico che la chiave non sia gia in uso
                 if(tag_descriptors_header_list[i] == key){
+                    tag_descriptor = i;
                     spin_unlock(&tag_descriptors_header_lock);
-                    printk(KERN_ERR "%s: Error during tag service creation: key already in use! \n", MODNAME);
+                }
+            }
+
+            // se non esiste sollevo un errore
+            if(tag_descriptor == -1){
+                spin_unlock(&tag_descriptors_header_lock);
+                printk(KERN_ERR "%s: No tag service found for this key! \n", MODNAME);
+                return -1;
+            }
+
+            // controllo la chiave associata al tag service
+            spin_lock(&lock_array[tag_descriptor]);
+
+            if(tag_descriptors_info_array[tag_descriptor]->key != key){
+
+                spin_unlock(&lock_array[tag_descriptor]);
+                printk(KERN_ERR "%s: Error during tag service opening with key %d! \n", MODNAME, key);
+                return -1;
+            }
+
+            // controllo i permessi associati al tag service
+            if(tag_descriptors_info_array[tag_descriptor]->perm == 0){
+
+                if(tag_descriptors_info_array[tag_descriptor]->euid == get_current_user()->uid){
+
+                    spin_unlock(&lock_array[tag_descriptor]);
+                    return tag_descriptor;
+                
+                }else{
+
+                    spin_unlock(&lock_array[tag_descriptor]);
+                    printk(KERN_ERR "%s: Cannot open tag-service with key %d : insufficient permissions! \n", MODNAME, key);
                     return -1;
                 }
+            
+            }else if(tag_descriptors_info_array[tag_descriptor]->perm == 1){
+
+                spin_unlock(&lock_array[tag_descriptor]);
+                return tag_descriptor;
+
+            }else{
+
+                spin_unlock(&lock_array[tag_descriptor]);
+                printk(KERN_ERR "%s: Error with permissions with tag-service with key %d! \n", MODNAME, key);
+                return -1;
             }
 
         }
