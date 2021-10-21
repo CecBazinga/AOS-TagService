@@ -60,7 +60,7 @@ int free_tag_service(void){
 
 
 
-int tag get(int key, int command, int permission){
+int tag_get(int key, int command, int permission){
 
     int i;
     int tag_descriptor = -1;
