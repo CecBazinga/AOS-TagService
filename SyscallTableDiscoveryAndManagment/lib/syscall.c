@@ -12,9 +12,10 @@ spinlock_t tag_descriptors_header_lock;
 
 struct tag_descriptor_info *tag_descriptors_info_array[TAGS] = { NULL };
 spinlock_t lock_array[TAGS];
+struct tag *tags[TAGS] = { NULL };
 
 
-
+// funzione che inizializza l'array per le info dei singoli tag service
 int init_tag_service(void){
 
     int i;
@@ -28,7 +29,7 @@ int init_tag_service(void){
         }
         tag_descriptors_info_array[i]->key = -1;
         tag_descriptors_info_array[i]->perm = -1;
-        tag_descriptors_info_array[i]->euid = -1;
+        //tag_descriptors_info_array[i]->euid = NULL;
     }
 
     printk("%s: Tag service structures have been initialized succesfully! \n", MODNAME);
@@ -59,8 +60,27 @@ int free_tag_service(void){
 }
 
 
+struct tag* create_tag(void){
 
-int insert_tag_descriptor_info(int key, int tag_descriptor, int premission){
+    int i;
+
+    struct tag *the_tag = kmalloc(sizeof(struct tag), GFP_KERNEL);
+
+    // errore durante l'allocazione di memoria
+    if(the_tag == NULL){
+        return NULL;
+    }
+
+    for(i=0; i<LEVELS; i++){
+        the_tag->levels[i] = NULL;
+    }
+
+    return the_tag;
+
+}
+
+
+int insert_tag_descriptor_info(int key, int tag_descriptor, int permission){
 
     // accedo alla struct corrispondente per inserire i valori della create 
     spin_lock(&lock_array[tag_descriptor]);
@@ -73,13 +93,20 @@ int insert_tag_descriptor_info(int key, int tag_descriptor, int premission){
         
     }else{
 
+        // inizializzo i valori di info del tag service
         tag_descriptors_info_array[tag_descriptor]->key = key ;
         tag_descriptors_info_array[tag_descriptor]->perm = permission ;
         tag_descriptors_info_array[tag_descriptor]->euid = get_current_user()->uid;
 
+        // inizializzo il tag service
+        tags[tag_descriptor] = create_tag();
+        if(tags[tag_descriptor]==NULL){
+            printk(KERN_ERR "%s: Error during tag creation! \n", MODNAME);
+            return -1;
+        }
 
         spin_unlock(&lock_array[tag_descriptor]);
-        printk(KERN_INFO "%s: Tag service infos correctly created with key IPC_PRIVATE and tag-descriptor : %d \n", MODNAME, tag_descriptor);
+        printk(KERN_INFO "%s: Tag service infos and tag struct correctly created with key: %d  and tag-descriptor : %d \n", MODNAME, key, tag_descriptor);
 
         return tag_descriptor;
     }
@@ -207,7 +234,7 @@ int tag_get(int key, int command, int permission){
             // controllo i permessi associati al tag service
             if(tag_descriptors_info_array[tag_descriptor]->perm == 0){
 
-                if(tag_descriptors_info_array[tag_descriptor]->euid == get_current_user()->uid){
+                if(tag_descriptors_info_array[tag_descriptor]->euid.val == get_current_user()->uid.val){
 
                     spin_unlock(&lock_array[tag_descriptor]);
                     return tag_descriptor;

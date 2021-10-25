@@ -4,6 +4,8 @@
 #include <linux/cred.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/wait.h>
+
 
 #define TAGS 256
 #define LEVELS 32
@@ -21,7 +23,23 @@ struct tag_descriptor_info{
 
 	int key;          // 0 se IPC_PRIVATE oppure un intero strettamente positivo (key). -1 indica tag service disponibile
     int perm;         // 0 se utilizzabile da qualunque utente oppure è settato al EUID dell'utente creatore
-	uid_t euid;
+	kuid_t euid;
+};
+
+
+struct tag_level{
+
+	int threads_waiting;
+	int buffer_busy;
+	char *buffer;
+	wait_queue_head_t *wq;
+
+};
+
+struct tag{
+
+	struct tag_level *levels[LEVELS];
+	spinlock_t levels_locks[LEVELS];
 };
 
 

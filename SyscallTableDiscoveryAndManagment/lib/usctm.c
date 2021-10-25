@@ -51,20 +51,20 @@ static unsigned long sys_trial = (unsigned long) __x64_sys_trial;
 
 
 
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
-__SYSCALL_DEFINEx(2, _pippo, unsigned long, A, unsigned long, B){
+__SYSCALL_DEFINEx(3, _tag_get, int, key, int, command, int, permission){
 #else
-asmlinkage long sys_pippo(unsigned long A, unsigned long B){
+asmlinkage long sys_tag_get(int key, int command, int permission){
 #endif
 
-        printk("%s: thread %d requests a trial PIPPO sys_call with %lu and %lu as parameters\n",MODNAME,current->pid,A,B);
-
-        return 0;
+        return tag_get(key,command,permission);
 
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
-static unsigned long sys_pippo = (unsigned long) __x64_sys_pippo;	
+static unsigned long sys_tag_get = (unsigned long) __x64_sys_tag_get;	
 #else
 #endif
 
@@ -224,10 +224,10 @@ int init_module(void) {
 	cr0 = read_cr0();
         unprotect_memory();
         // inserimento di piu syscall nelle entry sys_ni trovate da fare qui
-        hacked_syscall_tbl[free_entries[0]] = (unsigned long*)sys_trial;
-		hacked_syscall_tbl[free_entries[1]] = (unsigned long*)sys_pippo;
+        hacked_syscall_tbl[free_entries[0]] = (unsigned long*)sys_tag_get;
+		//hacked_syscall_tbl[free_entries[1]] = (unsigned long*)sys_pippo;
         protect_memory();
-	printk("%s: a sys_call with 2 parameters has been installed as a trial on the sys_call_table at displacement %d and %d\n",MODNAME,free_entries[0],free_entries[1]);	
+	printk("%s: a sys_call with 2 parameters has been installed as a trial on the sys_call_table at displacement %d and %d\n",MODNAME,free_entries[0]);	
 #else
 #endif
 
@@ -244,7 +244,7 @@ void cleanup_module(void) {
         unprotect_memory();
         // rimozione delle syscall inserite da fare qui
         hacked_syscall_tbl[free_entries[0]] = (unsigned long*)hacked_ni_syscall;
-		hacked_syscall_tbl[free_entries[1]] = (unsigned long*)hacked_ni_syscall;
+		//hacked_syscall_tbl[free_entries[1]] = (unsigned long*)hacked_ni_syscall;
         protect_memory();
 #else
 #endif
