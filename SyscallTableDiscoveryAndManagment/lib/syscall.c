@@ -29,7 +29,7 @@ int init_tag_service(void){
         }
         tag_descriptors_info_array[i]->key = -1;
         tag_descriptors_info_array[i]->perm = -1;
-        //tag_descriptors_info_array[i]->euid = NULL;
+        //tag_descriptors_info_array[i]->euid.val = -1;
     }
 
     printk("%s: Tag service structures have been initialized succesfully! \n", MODNAME);
@@ -104,7 +104,7 @@ int insert_tag_descriptor_info(int key, int tag_descriptor, int permission){
             printk(KERN_ERR "%s: Error during tag creation! \n", MODNAME);
             return -1;
         }
-
+       
         spin_unlock(&lock_array[tag_descriptor]);
         printk(KERN_INFO "%s: Tag service infos and tag struct correctly created with key: %d  and tag-descriptor : %d \n", MODNAME, key, tag_descriptor);
 
@@ -120,12 +120,12 @@ int tag_get(int key, int command, int permission){
     int i;
     int tag_descriptor = -1;
 
-    if (command != OPEN || command != CREATE){
+    if (command != OPEN && command != CREATE){
         printk(KERN_ERR "%s: Invalid command flag: chose one of OPEN or CREATE! \n", MODNAME);
         return -1;
     }
 
-    if (permission != PERM_NONE || permission != PERM_ALL){
+    if (permission != PERM_NONE && permission != PERM_ALL){
         printk(KERN_ERR "%s: Invalid permission flag: chose one of PERM_NONE or PERM_ALL! \n", MODNAME);
         return -1;
     }
@@ -134,6 +134,7 @@ int tag_get(int key, int command, int permission){
     if (key == IPC_PRIVATE){
 
         printk(KERN_INFO "%s: Macro IPC_PRIVATE value is : %d \n", MODNAME, key);
+    
 
         if(command == OPEN){
             printk(KERN_ERR "%s: Cannot open a tag-service with IPC_PRIVATE key! \n", MODNAME);
@@ -146,7 +147,9 @@ int tag_get(int key, int command, int permission){
             spin_lock(&tag_descriptors_header_lock);
 
             for(i=0; i<TAGS ; i++){
+
                 if (tag_descriptors_header_list[i] == -1){
+                
                     tag_descriptors_header_list[i] = 0;
                     spin_unlock(&tag_descriptors_header_lock);
                     tag_descriptor = i;
@@ -154,6 +157,7 @@ int tag_get(int key, int command, int permission){
                 }
             }
 
+    
             // caso in cui non si hanno piu slot liberi a disposizione
             if (tag_descriptor == -1){
                 spin_unlock(&tag_descriptors_header_lock);
@@ -163,6 +167,8 @@ int tag_get(int key, int command, int permission){
 
             return insert_tag_descriptor_info(key,tag_descriptor,permission);
         }
+
+        return -1;
 
 
     }else if (key > 0){
@@ -235,7 +241,6 @@ int tag_get(int key, int command, int permission){
             if(tag_descriptors_info_array[tag_descriptor]->perm == 0){
 
                 if(tag_descriptors_info_array[tag_descriptor]->euid.val == get_current_user()->uid.val){
-
                     spin_unlock(&lock_array[tag_descriptor]);
                     return tag_descriptor;
                 
@@ -260,12 +265,24 @@ int tag_get(int key, int command, int permission){
 
         }
 
+        return -1;
+
 
     }else{
-         printk(KERN_ERR "%s: Invalid key value: chose IPC_PRIVATE or an integer greater than 0! \n", MODNAME);
+        printk(KERN_ERR "%s: Invalid key value: chose IPC_PRIVATE or an integer greater than 0! \n", MODNAME);
         return -1;
     }
 
+}
+
+
+
+
+int tag send(int tag, int level, char* buffer, size t size){
+
+
+
+    
 }
 
 

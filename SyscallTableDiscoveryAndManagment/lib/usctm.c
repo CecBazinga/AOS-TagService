@@ -189,13 +189,14 @@ unprotect_memory(void)
 
 int init_module(void) {
 	
+
 	int res = init_tag_service();
 	if(res!=0){
 		printk("%s: failed to initialize_tag_service_structures\n",MODNAME);
 		return -1;
 	}
 
-	res = free_tag_service();
+	//res = free_tag_service();
 
 
 
@@ -227,7 +228,7 @@ int init_module(void) {
         hacked_syscall_tbl[free_entries[0]] = (unsigned long*)sys_tag_get;
 		//hacked_syscall_tbl[free_entries[1]] = (unsigned long*)sys_pippo;
         protect_memory();
-	printk("%s: a sys_call with 2 parameters has been installed as a trial on the sys_call_table at displacement %d and %d\n",MODNAME,free_entries[0]);	
+	printk("%s: a sys_call tag_get with 3 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[0]);	
 #else
 #endif
 
@@ -237,8 +238,12 @@ int init_module(void) {
 
 }
 
+
 void cleanup_module(void) {
                 
+	//TODO: liberare strutture dati
+	int res = free_tag_service();
+
 #ifdef SYS_CALL_INSTALL
 	cr0 = read_cr0();
         unprotect_memory();
