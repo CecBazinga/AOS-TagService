@@ -65,6 +65,7 @@ int free_tag_service(void){
 
 
 
+
 struct tag* create_tag(void){
 
     int i;
@@ -118,6 +119,7 @@ int insert_tag_descriptor(int key, int tag_descriptor, int permission){
         return tag_descriptor;
     }
 }
+
 
 
 int check_tag_permission(int tag_descriptor){
@@ -328,18 +330,59 @@ int tag_send(int tag, int level, char* buffer, size_t size){
     // se il livello non è inizializzato non ci sono receivers, quindi scarto il messaggio
     if(tags[tag]->levels[level]==NULL){
         spin_unlock(&(tags[tag]->levels_locks[level]));
+        read_unlock(&lock_array[tag]);
         printk(KERN_INFO "%s: There are no receivers for this message on tag %d and level %d, ence has been discarded!\n", MODNAME, tag, level);
         return 0;
     }
 
-    //TODO: vado a scrivere il messaggio sul buffer e sveglio la waitqueue
 
+    // se il buffer è già in uso vuol dire che è in atto un'altra send e questa viene scartata
+    if(tags[tag]->levels[level]->buffer != NULL){
+        spin_unlock(&(tags[tag]->levels_locks[level]));
+        read_unlock(&lock_array[tag]);
+        printk(KERN_INFO "%s: Buffer already in use on tag %d and level %d, ence this send has been discarded!\n", MODNAME, tag, level);
+        return 0;
+    }
 
+    
+    // copio il messaggio nel buffer del livello del tag service
+    tags[tag]->levels[level]->buffer = kmalloc(size*sizeof(char), GFP_KERNEL);
 
+    int copied_byte = copy_from_user(tags[tag]->levels[level]->buffer,buffer,size);
+
+    // verifico che la copia abbia esito positivo, altrimenti libero il buffer e lo reimposto a NULL
+    if(copied_byte != 0){
+        kfree(tags[tag]->levels[level]->buffer);
+        tags[tag]->levels[level]->buffer = NULL;
+        spin_unlock(&(tags[tag]->levels_locks[level]));
+        read_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Error copying message on tag %d and level %d\n",MODNAME, tag, level);
+        return -1;
+    }
+
+    // sveglio tutti i receivers sulla wait queue
+    wake_up_all(&(tags[tag]->levels[level]->wq));
+
+    // rilascio il lock esclusivo sul livello 
+    spin_unlock(&(tags[tag]->levels_locks[level]));
+
+    // rilascio il read lock sul tag
+    read_unlock(&lock_array[tag]);
+    
     return 0;
 
 }
 
+
+
+
+int tag_receive(int tag, int level, char* buffer, size_t size){
+
+
+    
+
+
+}
 
 
 

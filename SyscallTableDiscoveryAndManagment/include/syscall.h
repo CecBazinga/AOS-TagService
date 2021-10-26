@@ -7,6 +7,7 @@
 #include <linux/wait.h>
 #include <linux/rwlock.h>
 #include <linux/rwlock_api_smp.h>
+#include <linux/uaccess.h>
 
 
 #define TAGS 256
