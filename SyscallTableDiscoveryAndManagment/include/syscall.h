@@ -5,6 +5,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/rwlock.h>
+#include <linux/rwlock_api_smp.h>
 
 
 #define TAGS 256

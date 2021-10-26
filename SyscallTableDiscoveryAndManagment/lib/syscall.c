@@ -11,11 +11,13 @@ spinlock_t tag_descriptors_header_lock;
 
 
 struct tag_descriptor_info *tag_descriptors_info_array[TAGS] = { NULL };
-spinlock_t lock_array[TAGS];
+rwlock_t lock_array[TAGS];
 struct tag *tags[TAGS] = { NULL };
 
+//TODO: mettere i rwlock sulle celle dell'array info
 
-// funzione che inizializza l'array per le info dei singoli tag service
+
+// funzione che inizializza l'array per le info dei singoli tag service e l'array di rwlocks
 int init_tag_service(void){
 
     int i;
@@ -30,6 +32,9 @@ int init_tag_service(void){
         tag_descriptors_info_array[i]->key = -1;
         tag_descriptors_info_array[i]->perm = -1;
         //tag_descriptors_info_array[i]->euid.val = -1;
+
+        // inizializzazione degli rwlock
+        rwlock_init(&lock_array[i]);
     }
 
     printk("%s: Tag service structures have been initialized succesfully! \n", MODNAME);
@@ -47,10 +52,10 @@ int free_tag_service(void){
 
         if(tag_descriptors_info_array[i] != NULL){
 
-            spin_lock(&(lock_array[i]));
+            write_lock(&(lock_array[i]));
             kfree(tag_descriptors_info_array[i]); 
             tag_descriptors_info_array[i] = NULL;
-            spin_unlock(&(lock_array[i]));
+            write_unlock(&(lock_array[i]));
 
         }
     }
@@ -80,14 +85,14 @@ struct tag* create_tag(void){
 }
 
 
-int insert_tag_descriptor_info(int key, int tag_descriptor, int permission){
+int insert_tag_descriptor(int key, int tag_descriptor, int permission){
 
     // accedo alla struct corrispondente per inserire i valori della create 
-    spin_lock(&lock_array[tag_descriptor]);
+    write_lock(&lock_array[tag_descriptor]);
 
     if(tag_descriptors_info_array[tag_descriptor]->key != -1){
 
-        spin_unlock(&lock_array[tag_descriptor]);
+        write_unlock(&lock_array[tag_descriptor]);
         printk(KERN_ERR "%s: Error during tag service structure creation! \n", MODNAME);
         return -1;
         
@@ -105,11 +110,33 @@ int insert_tag_descriptor_info(int key, int tag_descriptor, int permission){
             return -1;
         }
        
-        spin_unlock(&lock_array[tag_descriptor]);
+        write_unlock(&lock_array[tag_descriptor]);
         printk(KERN_INFO "%s: Tag service infos and tag struct correctly created with key: %d  and tag-descriptor : %d \n", MODNAME, key, tag_descriptor);
 
         return tag_descriptor;
     }
+}
+
+
+int check_tag_permission(int tag_descriptor){
+
+    if(tag_descriptors_info_array[tag_descriptor]->perm == 0){
+
+        if(tag_descriptors_info_array[tag_descriptor]->euid.val == get_current_user()->uid.val){
+            return tag_descriptor;
+        
+        }else{
+            return -1;
+        }
+            
+    }else if(tag_descriptors_info_array[tag_descriptor]->perm == 1){
+
+        return tag_descriptor;
+
+    }else{
+        return -1;
+    }
+
 }
 
 
@@ -165,7 +192,7 @@ int tag_get(int key, int command, int permission){
                 return -1;
             }
 
-            return insert_tag_descriptor_info(key,tag_descriptor,permission);
+            return insert_tag_descriptor(key,tag_descriptor,permission);
         }
 
         return -1;
@@ -204,7 +231,7 @@ int tag_get(int key, int command, int permission){
             spin_unlock(&tag_descriptors_header_lock);
 
             // accedo alla struct corrispondente per inserire i valori della create
-            return insert_tag_descriptor_info(key,tag_descriptor,permission);
+            return insert_tag_descriptor(key,tag_descriptor,permission);
         }
 
         if(command == OPEN){
@@ -228,40 +255,27 @@ int tag_get(int key, int command, int permission){
             }
 
             // controllo la chiave associata al tag service
-            spin_lock(&lock_array[tag_descriptor]);
+            read_lock(&lock_array[tag_descriptor]);
 
             if(tag_descriptors_info_array[tag_descriptor]->key != key){
 
-                spin_unlock(&lock_array[tag_descriptor]);
+                read_unlock(&lock_array[tag_descriptor]);
                 printk(KERN_ERR "%s: Error during tag service opening with key %d! \n", MODNAME, key);
                 return -1;
             }
 
             // controllo i permessi associati al tag service
-            if(tag_descriptors_info_array[tag_descriptor]->perm == 0){
+            int check = check_tag_permission(tag_descriptor);
 
-                if(tag_descriptors_info_array[tag_descriptor]->euid.val == get_current_user()->uid.val){
-                    spin_unlock(&lock_array[tag_descriptor]);
-                    return tag_descriptor;
-                
-                }else{
+            read_unlock(&lock_array[tag_descriptor]);
 
-                    spin_unlock(&lock_array[tag_descriptor]);
-                    printk(KERN_ERR "%s: Cannot open tag-service with key %d : insufficient permissions! \n", MODNAME, key);
-                    return -1;
-                }
-            
-            }else if(tag_descriptors_info_array[tag_descriptor]->perm == 1){
-
-                spin_unlock(&lock_array[tag_descriptor]);
-                return tag_descriptor;
-
-            }else{
-
-                spin_unlock(&lock_array[tag_descriptor]);
-                printk(KERN_ERR "%s: Error with permissions with tag-service with key %d! \n", MODNAME, key);
+            if(check == -1){
+                printk(KERN_ERR "%s: Cannot open tag-service with key %d : insufficient permissions or tag service corrupted! \n", MODNAME, key);
                 return -1;
+            
             }
+            
+            return check;
 
         }
 
@@ -280,24 +294,37 @@ int tag_get(int key, int command, int permission){
 
 int tag_send(int tag, int level, char* buffer, size_t size){
 
-    //TODO: definire se il buffer vuoto ha size 0 o 1
-    printk(KERN_INF "%s: Buffer's size is %d! \n", MODNAME, sizeof(buffer));
+    
+    printk(KERN_INFO "%s: Buffer's size is %d! \n", MODNAME, sizeof(buffer));
 
-
-    if(sizeof(buffer)!= size){
-        printk(KERN_ERR "%s: Buffer's size and size parameter does not match! \n", MODNAME);
+    // controllo il valore della size
+    if(size<1 || size>MAXSIZE){
+        printk(KERN_ERR "%s: Buffer's size must be in between 1 for empty buffers and %d which is maxsize allowed! \n", MODNAME, MAXSIZE);
         return -1;
     }
 
-    if(size > MAXSIZE){
-        printk(KERN_ERR "%s: Buffer exceded max size allowed! \n", MODNAME);
+    // controllo i permessi associati al tag service
+    read_lock(&lock_array[tag]);
+
+    if(check_permission(tag) == -1){
+        read_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted! \n", MODNAME, tag);
+        return -1;
+    
+    }
+
+    // se i permessi sono corretti accedo al tag service ed invio il messaggio
+    if(tags[tag]==NULL){
+        read_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d! \n", MODNAME, tag);
         return -1;
     }
 
+    // accedo al livello desiderato
+    //TODO: prendo lock su livello,controllo sia non null in caso butto il messaggio, sennò lo vado a scrivere sul buffer e sveglio la wawitqueue
 
 
-
-
+    return 0;
 
 }
 

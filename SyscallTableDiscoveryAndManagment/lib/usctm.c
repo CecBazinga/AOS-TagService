@@ -32,26 +32,16 @@ MODULE_DESCRIPTION("USCTM");
 #define SYS_CALL_INSTALL
 #ifdef SYS_CALL_INSTALL
 
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
-__SYSCALL_DEFINEx(4, _tag_send, int, tag, int, level, char*, buffer, size_t size){
+__SYSCALL_DEFINEx(4, _tag_send, int, tag, int, level, char*, buffer, size_t, size){
 #else
-asmlinkage long sys_trial(int tag, int level, char* buffer, size_t size){
+asmlinkage long sys_tag_send(int tag, int level, char* buffer, size_t size){
 #endif
 
-        printk("%s: thread %d requests a trial PLUTO sys_call with %lu and %lu as parameters\n",MODNAME,current->pid,A,B);
-
-        return 0;
+        return tag_send(tag,level,buffer,size);
 
 }
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
-static unsigned long sys_trial = (unsigned long) __x64_sys_trial;	
-#else
-#endif
-
-
-
-
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
 __SYSCALL_DEFINEx(3, _tag_get, int, key, int, command, int, permission){
@@ -63,10 +53,14 @@ asmlinkage long sys_tag_get(int key, int command, int permission){
 
 }
 
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
-static unsigned long sys_tag_get = (unsigned long) __x64_sys_tag_get;	
+static unsigned long sys_tag_get = (unsigned long) __x64_sys_tag_get;
+static unsigned long sys_tag_send = (unsigned long) __x64_sys_tag_send;	
 #else
 #endif
+
 
 
 
@@ -224,11 +218,11 @@ int init_module(void) {
 #ifdef SYS_CALL_INSTALL
 	cr0 = read_cr0();
         unprotect_memory();
-        // inserimento di piu syscall nelle entry sys_ni trovate da fare qui
         hacked_syscall_tbl[free_entries[0]] = (unsigned long*)sys_tag_get;
-		//hacked_syscall_tbl[free_entries[1]] = (unsigned long*)sys_pippo;
+		hacked_syscall_tbl[free_entries[1]] = (unsigned long*)sys_tag_send;
         protect_memory();
-	printk("%s: a sys_call tag_get with 3 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[0]);	
+	printk("%s: a sys_call tag_get with 3 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[0]);
+	printk("%s: a sys_call tag_send with 4 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[1]);	
 #else
 #endif
 
@@ -249,8 +243,10 @@ void cleanup_module(void) {
         unprotect_memory();
         // rimozione delle syscall inserite da fare qui
         hacked_syscall_tbl[free_entries[0]] = (unsigned long*)hacked_ni_syscall;
-		//hacked_syscall_tbl[free_entries[1]] = (unsigned long*)hacked_ni_syscall;
+		hacked_syscall_tbl[free_entries[1]] = (unsigned long*)hacked_ni_syscall;
         protect_memory();
+	printk("%s: Sys_calls at displacement: %d, %d, %d, %d have been restored to sys_ni_syscall!\n",MODNAME,free_entries[0], free_entries[1], 
+			free_entries[2], free_entries[3]);	
 #else
 #endif
         printk("%s: shutting down\n",MODNAME);
