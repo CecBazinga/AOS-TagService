@@ -278,11 +278,27 @@ int tag_get(int key, int command, int permission){
 
 
 
-int tag send(int tag, int level, char* buffer, size t size){
+int tag_send(int tag, int level, char* buffer, size_t size){
+
+    //TODO: definire se il buffer vuoto ha size 0 o 1
+    printk(KERN_INF "%s: Buffer's size is %d! \n", MODNAME, sizeof(buffer));
+
+
+    if(sizeof(buffer)!= size){
+        printk(KERN_ERR "%s: Buffer's size and size parameter does not match! \n", MODNAME);
+        return -1;
+    }
+
+    if(size > MAXSIZE){
+        printk(KERN_ERR "%s: Buffer exceded max size allowed! \n", MODNAME);
+        return -1;
+    }
 
 
 
-    
+
+
+
 }
 
 
@@ -290,15 +306,9 @@ int tag send(int tag, int level, char* buffer, size t size){
 
 
 
-int test(void){
 
 
-    int i; 
 
-    printk( "%s : MI SONO ROTTO I COGLIONI \n", MODNAME);
-    return 0;
-
-}
 
 
 

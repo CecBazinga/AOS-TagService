@@ -33,9 +33,9 @@ MODULE_DESCRIPTION("USCTM");
 #ifdef SYS_CALL_INSTALL
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
-__SYSCALL_DEFINEx(2, _trial, unsigned long, A, unsigned long, B){
+__SYSCALL_DEFINEx(4, _tag_send, int, tag, int, level, char*, buffer, size_t size){
 #else
-asmlinkage long sys_trial(unsigned long A, unsigned long B){
+asmlinkage long sys_trial(int tag, int level, char* buffer, size_t size){
 #endif
 
         printk("%s: thread %d requests a trial PLUTO sys_call with %lu and %lu as parameters\n",MODNAME,current->pid,A,B);

@@ -18,6 +18,8 @@
 #define PERM_NONE 0
 #define PERM_ALL 1
 
+#define MAXSIZE 4096
+
 
 struct tag_descriptor_info{
 
@@ -43,8 +45,10 @@ struct tag{
 };
 
 
-int test(void);
+
 int init_tag_service(void);
 int free_tag_service(void);
 
 int tag_get(int key, int command, int permission);
+
+int tag_send(int tag, int level, char* buffer, size_t size);
