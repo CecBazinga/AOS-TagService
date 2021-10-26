@@ -14,7 +14,6 @@ struct tag_descriptor_info *tag_descriptors_info_array[TAGS] = { NULL };
 rwlock_t lock_array[TAGS];
 struct tag *tags[TAGS] = { NULL };
 
-//TODO: mettere i rwlock sulle celle dell'array info
 
 
 // funzione che inizializza l'array per le info dei singoli tag service e l'array di rwlocks
@@ -65,6 +64,7 @@ int free_tag_service(void){
 }
 
 
+
 struct tag* create_tag(void){
 
     int i;
@@ -83,6 +83,8 @@ struct tag* create_tag(void){
     return the_tag;
 
 }
+
+
 
 
 int insert_tag_descriptor(int key, int tag_descriptor, int permission){
@@ -321,7 +323,17 @@ int tag_send(int tag, int level, char* buffer, size_t size){
     }
 
     // accedo al livello desiderato
-    //TODO: prendo lock su livello,controllo sia non null in caso butto il messaggio, sennò lo vado a scrivere sul buffer e sveglio la wawitqueue
+    spin_lock(&(tags[tag]->levels_locks[level]));
+
+    // se il livello non è inizializzato non ci sono receivers, quindi scarto il messaggio
+    if(tags[tag]->levels[level]==NULL){
+        spin_unlock(&(tags[tag]->levels_locks[level]));
+        printk(KERN_INFO "%s: There are no receivers for this message on tag %d and level %d, ence has been discarded!\n", MODNAME, tag, level);
+        return 0;
+    }
+
+    //TODO: vado a scrivere il messaggio sul buffer e sveglio la waitqueue
+
 
 
     return 0;
