@@ -77,6 +77,7 @@ struct tag* create_tag(void){
         return NULL;
     }
 
+    // inizializzazione dei puntatori ai livelli del tag a null
     for(i=0; i<LEVELS; i++){
         the_tag->levels[i] = NULL;
     }
@@ -294,7 +295,7 @@ int tag_get(int key, int command, int permission){
 }
 
 
-//TODO: gestire la condizione di risveglio forzato
+
 
 
 int tag_send(int tag, int level, char* buffer, size_t size){
@@ -350,6 +351,13 @@ int tag_send(int tag, int level, char* buffer, size_t size){
     // copio il messaggio nel buffer del livello del tag service
     tags[tag]->levels[level]->buffer = kmalloc(size*sizeof(char), GFP_KERNEL);
 
+    if(tags[tag]->levels[level]->buffer == NULL){
+        spin_unlock(&(tags[tag]->levels_locks[level]));
+        read_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Error during buffer allocation for tag service %d on level %d! \n", MODNAME, tag, level);
+        return -1;
+    }
+
     int copied_byte = copy_from_user(tags[tag]->levels[level]->buffer,buffer,size);
 
     // verifico che la copia abbia esito positivo, altrimenti libero il buffer e lo reimposto a NULL
@@ -362,12 +370,14 @@ int tag_send(int tag, int level, char* buffer, size_t size){
         return -1;
     }
 
-
-    // rilascio il lock esclusivo sul livello 
-    spin_unlock(&(tags[tag]->levels_locks[level]));
+    // imposto la condizione di risveglio
+    tags[tag]->levels[level]->awake = 1;
 
     // sveglio tutti i receivers sulla wait queue
     wake_up_all(tags[tag]->levels[level]->wq);
+
+    // rilascio il lock esclusivo sul livello 
+    spin_unlock(&(tags[tag]->levels_locks[level]));
 
     // rilascio il read lock sul tag
     read_unlock(&lock_array[tag]);
@@ -413,47 +423,69 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
 
         // inizializzo la struct level, il suo buffer, la sua waitqueue ed il numero di thread in waiting
         tags[tag]->levels[level] = kmalloc(sizeof(struct tag_level), GFP_KERNEL);
+
+        if(tags[tag]->levels[level] == NULL){
+            spin_unlock(&(tags[tag]->levels_locks[level]));
+            read_unlock(&lock_array[tag]);
+            printk(KERN_ERR "%s: Error during level structure allocation for tag service %d on level %d! \n", MODNAME, tag, level);
+            return -1;
+        }
+
         tags[tag]->levels[level]->buffer = NULL;
         tags[tag]->levels[level]->threads_waiting = 1;
+        tags[tag]->levels[level]->awake = 0;
         init_waitqueue_head (&(tags[tag]->levels[level]->wq));
-
-        // libero il lock
-        spin_unlock(&(tags[tag]->levels_locks[level]));
-
-        //rilascio il read lock sulla cella del tag service info
-        read_unlock(&lock_array[tag]);
-
-        // mando il receiver in sleep sulla waitqueue
-        wait_event_interruptible(tags[tag]->levels[level]->wq, condition);
-
         
     }else{
 
         // se il livello è gia stato instanziato incremento il numero di thread in attesa
-        tags[tag]->levels[level]->threads_waiting ++;
-
-        // libero il lock
-        spin_unlock(&(tags[tag]->levels_locks[level]));
-
-        //rilascio il read lock sulla cella del tag service info
-        read_unlock(&lock_array[tag]);
-
-        printk(KERN_INFO "%s: Threads waiting value is: %d! \n", MODNAME,tags[tag]->levels[level]->threads_waiting);
-
-        // mando il receiver in sleep sulla waitqueue se il buffer è null ed occorre attendere la send
-        if(tags[tag]->levels[level]->buffer == NULL){
-            wait_event_interruptible(tags[tag]->levels[level]->wq, condition);
-        }
+        tags[tag]->levels[level]->threads_waiting ++; 
     }
 
-    //TODO: distinguere se mi sveglio per awake all o per la send checkando condizione e buffer
+    // libero il lock
+    spin_unlock(&(tags[tag]->levels_locks[level]));
+
+    //rilascio il read lock sulla cella del tag service info
+    read_unlock(&lock_array[tag]);
+
+    printk(KERN_INFO "%s: Threads waiting value is: %d! \n", MODNAME,tags[tag]->levels[level]->threads_waiting);
+
+    // mando il receiver in sleep sulla waitqueue
+    wait_event_interruptible(tags[tag]->levels[level]->wq, tags[tag]->levels[level]->awake == 1);
+
+    //TODO: inserire routine di deallocazione del livello e free delle risorse da parte del receiver
+
     // routine di copia del buffer da eseguire al risveglio dalla waitqueue
-    if(tags[tag]->levels[level]->buffer == NULL){
-        printk("%s: thread %d exiting sleep for a signal or awake all\n",MODNAME, current->pid);
+    if(tags[tag]->levels[level]->awake == 0){
+
+        spin_lock(&(tags[tag]->levels_locks[level]));
+        tags[tag]->levels[level]->threads_waiting --;
+
+        // se sono l'ultimo receiver rimasto dealloco le strutture dati del livello
+        if(tags[tag]->levels[level]->threads_waiting == 0){
+            //TODO: funzione per deallocare il livello 
+
+        }
+        spin_unlock(&(tags[tag]->levels_locks[level]));
+
+        printk("%s: thread %d exiting sleep on tag %d and level %d due to a signal\n",MODNAME, current->pid, tag, level);
         return 0;
 
-    }else{
-        // risveglio dovuto ad un awake all od una send
+    }else if(tags[tag]->levels[level]->awake == 1){
+
+        // risveglio dovuto ad un awake all
+        if(tags[tag]->levels[level]->buffer == NULL){
+
+            spin_lock(&(tags[tag]->levels_locks[level]));
+            tags[tag]->levels[level]->threads_waiting --;
+            spin_unlock(&(tags[tag]->levels_locks[level]));
+
+            printk("%s: thread %d exiting sleep on tag %d and level %d due to a signal\n",MODNAME, current->pid, tag, level);
+            return 0;
+
+        }
+
+        // risveglio dovuto ad una send
 
 
     }

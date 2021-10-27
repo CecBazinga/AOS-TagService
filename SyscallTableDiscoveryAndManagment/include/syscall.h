@@ -36,7 +36,7 @@ struct tag_level{
 
 	int threads_waiting;
 	char *buffer;
-	int force_awake;   // 0 se il risveglio è ad opera della send, 1 se è ad opera della awake_all
+	int awake;   // condizione su cui svegliarsi: se 1 i thread si risvegliano dalla waitqueue
 	wait_queue_head_t wq;
 
 };
