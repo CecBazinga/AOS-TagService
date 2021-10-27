@@ -36,6 +36,7 @@ struct tag_level{
 
 	int threads_waiting;
 	char *buffer;
+	size_t size;
 	int awake;   // condizione su cui svegliarsi: se 1 i thread si risvegliano dalla waitqueue
 	wait_queue_head_t wq;
 

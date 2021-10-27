@@ -145,6 +145,30 @@ int check_tag_permission(int tag_descriptor){
 }
 
 
+void remove_and_deallocate_level(int tag, int level){
+
+    spin_lock(&(tags[tag]->levels_locks[level]));
+        
+    tags[tag]->levels[level]->threads_waiting --;
+
+    // se sono l'ultimo receiver rimasto dealloco le strutture dati del livello
+    if(tags[tag]->levels[level]->threads_waiting == 0){
+
+        if(tags[tag]->levels[level]->buffer != NULL){
+            kfree(tags[tag]->levels[level]->buffer);
+        }
+
+        kfree(tags[tag]->levels[level]);
+        tags[tag]->levels[level] = NULL;
+
+    }
+
+    spin_unlock(&(tags[tag]->levels_locks[level]));
+
+    return ;
+}
+
+
 
 
 int tag_get(int key, int command, int permission){
@@ -372,6 +396,7 @@ int tag_send(int tag, int level, char* buffer, size_t size){
 
     // imposto la condizione di risveglio
     tags[tag]->levels[level]->awake = 1;
+    tags[tag]->levels[level]->size = size;
 
     // sveglio tutti i receivers sulla wait queue
     wake_up_all(tags[tag]->levels[level]->wq);
@@ -385,6 +410,9 @@ int tag_send(int tag, int level, char* buffer, size_t size){
     return 0;
 
 }
+
+
+
 
 
 
@@ -434,6 +462,7 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
         tags[tag]->levels[level]->buffer = NULL;
         tags[tag]->levels[level]->threads_waiting = 1;
         tags[tag]->levels[level]->awake = 0;
+        tags[tag]->levels[level]->size = 0;
         init_waitqueue_head (&(tags[tag]->levels[level]->wq));
         
     }else{
@@ -453,22 +482,12 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
     // mando il receiver in sleep sulla waitqueue
     wait_event_interruptible(tags[tag]->levels[level]->wq, tags[tag]->levels[level]->awake == 1);
 
-    //TODO: inserire routine di deallocazione del livello e free delle risorse da parte del receiver
-
     // routine di copia del buffer da eseguire al risveglio dalla waitqueue
     if(tags[tag]->levels[level]->awake == 0){
+        
+        remove_and_deallocate_level(tag, level);
 
-        spin_lock(&(tags[tag]->levels_locks[level]));
-        tags[tag]->levels[level]->threads_waiting --;
-
-        // se sono l'ultimo receiver rimasto dealloco le strutture dati del livello
-        if(tags[tag]->levels[level]->threads_waiting == 0){
-            //TODO: funzione per deallocare il livello 
-
-        }
-        spin_unlock(&(tags[tag]->levels_locks[level]));
-
-        printk("%s: thread %d exiting sleep on tag %d and level %d due to a signal\n",MODNAME, current->pid, tag, level);
+        printk(KERN_INFO "%s: thread %d exiting sleep on tag %d and level %d due to a signal\n",MODNAME, current->pid, tag, level);
         return 0;
 
     }else if(tags[tag]->levels[level]->awake == 1){
@@ -476,23 +495,48 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
         // risveglio dovuto ad un awake all
         if(tags[tag]->levels[level]->buffer == NULL){
 
-            spin_lock(&(tags[tag]->levels_locks[level]));
-            tags[tag]->levels[level]->threads_waiting --;
-            spin_unlock(&(tags[tag]->levels_locks[level]));
+            remove_and_deallocate_level(tag, level);
 
-            printk("%s: thread %d exiting sleep on tag %d and level %d due to a signal\n",MODNAME, current->pid, tag, level);
+            printk(KERN_INFO "%s: thread %d exiting sleep on tag %d and level %d due to an awake all syscall!\n",MODNAME, current->pid, tag, level);
             return 0;
 
         }
 
         // risveglio dovuto ad una send
+        char *message = kmalloc(size*sizeof(char), GFP_KERNEL);
 
+        if(message == NULL){
+            printk(KERN_ERR "%s: Error during receviver buffer allocation for thread %d on tag service %d on level %d! \n", MODNAME, current->pid, tag, level);
+            remove_and_deallocate_level(tag, level);
+            return -1;
+        }
 
+        int copied = copy_to_user(message, tags[tag]->levels[level]->buffer, min(size, tags[tag]->levels[level]->size));
+        
+        if(copied != 0){
+
+            kfree(message);
+
+            printk(KERN_ERR "%s: Error copying message to user space for thread %d on tag %d and level %d\n",MODNAME, current->pid, tag, level);
+
+            remove_and_deallocate_level(tag, level);
+            
+            return -1;
+        }
+
+        printk(KERN_INFO "%s: Message red from tag %d on level %d from thread %d is: %s\n",MODNAME, tag, level, current->pid, message);
+
+        kfree(message);
+
+        remove_and_deallocate_level(tag, level);
+            
+        return 0;
+
+    }else{
+
+        printk(KERN_ERR "%s: Somenthing wrong happened during awake of threads on tag %d on level %d \n",MODNAME, tag, level);
+        return -1;
     }
-
-    
-
-
 
 }
 
