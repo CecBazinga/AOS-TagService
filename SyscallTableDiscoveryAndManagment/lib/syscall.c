@@ -294,6 +294,7 @@ int tag_get(int key, int command, int permission){
 }
 
 
+//TODO: gestire la condizione di risveglio forzato
 
 
 int tag_send(int tag, int level, char* buffer, size_t size){
@@ -317,7 +318,8 @@ int tag_send(int tag, int level, char* buffer, size_t size){
     
     }
 
-    // se i permessi sono corretti accedo al tag service ed invio il messaggio
+
+    // se i permessi sono corretti accedo al tag service per l' invio del messaggio
     if(tags[tag]==NULL){
         read_unlock(&lock_array[tag]);
         printk(KERN_ERR "%s: Error in tag service with tag descriptor %d! \n", MODNAME, tag);
@@ -360,11 +362,12 @@ int tag_send(int tag, int level, char* buffer, size_t size){
         return -1;
     }
 
-    // sveglio tutti i receivers sulla wait queue
-    wake_up_all(&(tags[tag]->levels[level]->wq));
 
     // rilascio il lock esclusivo sul livello 
     spin_unlock(&(tags[tag]->levels_locks[level]));
+
+    // sveglio tutti i receivers sulla wait queue
+    wake_up_all(tags[tag]->levels[level]->wq);
 
     // rilascio il read lock sul tag
     read_unlock(&lock_array[tag]);
@@ -378,8 +381,85 @@ int tag_send(int tag, int level, char* buffer, size_t size){
 
 int tag_receive(int tag, int level, char* buffer, size_t size){
 
+    // controllo il valore della size
+    if(size<1 || size>MAXSIZE){
+        printk(KERN_ERR "%s: Buffer's size must be in between 1 for empty buffers and %d which is maxsize allowed! \n", MODNAME, MAXSIZE);
+        return -1;
+    }
+
+    // controllo i permessi associati al tag service
+    read_lock(&lock_array[tag]);
+
+    if(check_permission(tag) == -1){
+        read_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted! \n", MODNAME, tag);
+        return -1;
+    
+    }
+
+    // se i permessi sono corretti accedo al tag service per la ricezione del messaggio
+    if(tags[tag]==NULL){
+        read_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d! \n", MODNAME, tag);
+        return -1;
+    }
+
+
+    // accedo al livello desiderato
+    spin_lock(&(tags[tag]->levels_locks[level]));
+
+    // se il livello non è inizializzato non ci sono receivers, quindi lo inizializzo con un nuovo buffer
+    if(tags[tag]->levels[level]==NULL){
+
+        // inizializzo la struct level, il suo buffer, la sua waitqueue ed il numero di thread in waiting
+        tags[tag]->levels[level] = kmalloc(sizeof(struct tag_level), GFP_KERNEL);
+        tags[tag]->levels[level]->buffer = NULL;
+        tags[tag]->levels[level]->threads_waiting = 1;
+        init_waitqueue_head (&(tags[tag]->levels[level]->wq));
+
+        // libero il lock
+        spin_unlock(&(tags[tag]->levels_locks[level]));
+
+        //rilascio il read lock sulla cella del tag service info
+        read_unlock(&lock_array[tag]);
+
+        // mando il receiver in sleep sulla waitqueue
+        wait_event_interruptible(tags[tag]->levels[level]->wq, condition);
+
+        
+    }else{
+
+        // se il livello è gia stato instanziato incremento il numero di thread in attesa
+        tags[tag]->levels[level]->threads_waiting ++;
+
+        // libero il lock
+        spin_unlock(&(tags[tag]->levels_locks[level]));
+
+        //rilascio il read lock sulla cella del tag service info
+        read_unlock(&lock_array[tag]);
+
+        printk(KERN_INFO "%s: Threads waiting value is: %d! \n", MODNAME,tags[tag]->levels[level]->threads_waiting);
+
+        // mando il receiver in sleep sulla waitqueue se il buffer è null ed occorre attendere la send
+        if(tags[tag]->levels[level]->buffer == NULL){
+            wait_event_interruptible(tags[tag]->levels[level]->wq, condition);
+        }
+    }
+
+    //TODO: distinguere se mi sveglio per awake all o per la send checkando condizione e buffer
+    // routine di copia del buffer da eseguire al risveglio dalla waitqueue
+    if(tags[tag]->levels[level]->buffer == NULL){
+        printk("%s: thread %d exiting sleep for a signal or awake all\n",MODNAME, current->pid);
+        return 0;
+
+    }else{
+        // risveglio dovuto ad un awake all od una send
+
+
+    }
 
     
+
 
 
 }
