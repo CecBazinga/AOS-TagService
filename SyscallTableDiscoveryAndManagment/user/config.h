@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/fsuid.h>
+#include <pthread.h>
 
 //#include <time.h>
 
@@ -14,3 +15,5 @@
 
 #define PERM_NONE 0
 #define PERM_ALL 1
+
+#define TOTAL_THREADS 10

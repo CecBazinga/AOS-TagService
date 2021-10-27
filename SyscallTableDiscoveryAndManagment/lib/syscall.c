@@ -500,6 +500,7 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
         }
 
         // risveglio dovuto ad una send
+        /*
         char *message = kmalloc(size*sizeof(char), GFP_KERNEL);
 
         if(message == NULL){
@@ -507,8 +508,9 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
             remove_and_deallocate_level(tag, level);
             return -1;
         }
+        */
 
-        int copied = copy_to_user(message, tags[tag]->levels[level]->buffer, min(size, tags[tag]->levels[level]->size));
+        int copied = copy_to_user(buffer, tags[tag]->levels[level]->buffer, min(size, tags[tag]->levels[level]->size));
         
         if(copied != 0){
 
