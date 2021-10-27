@@ -324,9 +324,6 @@ int tag_get(int key, int command, int permission){
 
 int tag_send(int tag, int level, char* buffer, size_t size){
 
-    
-    printk(KERN_INFO "%s: Buffer's size is %d! \n", MODNAME, sizeof(buffer));
-
     // controllo il valore della size
     if(size<1 || size>MAXSIZE){
         printk(KERN_ERR "%s: Buffer's size must be in between 1 for empty buffers and %d which is maxsize allowed! \n", MODNAME, MAXSIZE);
@@ -336,7 +333,7 @@ int tag_send(int tag, int level, char* buffer, size_t size){
     // controllo i permessi associati al tag service
     read_lock(&lock_array[tag]);
 
-    if(check_permission(tag) == -1){
+    if(check_tag_permission(tag) == -1){
         read_unlock(&lock_array[tag]);
         printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted! \n", MODNAME, tag);
         return -1;
@@ -399,7 +396,7 @@ int tag_send(int tag, int level, char* buffer, size_t size){
     tags[tag]->levels[level]->size = size;
 
     // sveglio tutti i receivers sulla wait queue
-    wake_up_all(tags[tag]->levels[level]->wq);
+    wake_up_all(&(tags[tag]->levels[level]->wq));
 
     // rilascio il lock esclusivo sul livello 
     spin_unlock(&(tags[tag]->levels_locks[level]));
@@ -428,7 +425,7 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
     // controllo i permessi associati al tag service
     read_lock(&lock_array[tag]);
 
-    if(check_permission(tag) == -1){
+    if(check_tag_permission(tag) == -1){
         read_unlock(&lock_array[tag]);
         printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted! \n", MODNAME, tag);
         return -1;
