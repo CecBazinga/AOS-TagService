@@ -38,7 +38,7 @@ int main(int argc, char** argv){
     }
 
     // creazione tag service
-    tag_id = syscall(134,34,CREATE,PERM_ALL);
+    tag_id = syscall(134,35,CREATE,PERM_ALL);
     if(tag_id == -1){
         printf("Tag create failed!\n");
         return -1;
@@ -79,6 +79,7 @@ int main(int argc, char** argv){
         printf("Error: remove should fail because there are threads waiting on this tag %d!\n", tag_id);
     }
 
+
     // awake all con receivers nel tag service: dovrebbe svegliare i thread su tutti i livelli
     ret = syscall(177,tag_id,AWAKE_ALL);
     if(ret == -1){
@@ -89,6 +90,7 @@ int main(int argc, char** argv){
     }
 
 
+    sleep(10);
     // remove quando non ci sono piu thread in attesa: dovrebbe avere successo
     ret = syscall(177,tag_id,REMOVE);
     if(ret == -1){
