@@ -334,7 +334,7 @@ int tag_send(int tag, int level, char* buffer, size_t size){
 
     if(check_tag_permission(tag) == -1){
         read_unlock(&lock_array[tag]);
-        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted! \n", MODNAME, tag);
+        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted or doesn't exist! \n", MODNAME, tag);
         return -1;
     
     }
@@ -343,7 +343,7 @@ int tag_send(int tag, int level, char* buffer, size_t size){
     // se i permessi sono corretti accedo al tag service per l' invio del messaggio
     if(tags[tag]==NULL){
         read_unlock(&lock_array[tag]);
-        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d! \n", MODNAME, tag);
+        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d this tag doesn't exist! \n", MODNAME, tag);
         return -1;
     }
 
@@ -426,7 +426,7 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
 
     if(check_tag_permission(tag) == -1){
         read_unlock(&lock_array[tag]);
-        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted! \n", MODNAME, tag);
+        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted or doesn't exist! \n", MODNAME, tag);
         return -1;
     
     }
@@ -434,7 +434,7 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
     // se i permessi sono corretti accedo al tag service per la ricezione del messaggio
     if(tags[tag]==NULL){
         read_unlock(&lock_array[tag]);
-        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d! \n", MODNAME, tag);
+        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d this tag doesn't exist! \n", MODNAME, tag);
         return -1;
     }
 
@@ -536,32 +536,33 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
 
 int tag_ctl(int tag, int command){
 
+    int i;
+
     if (command != AWAKE_ALL && command != REMOVE){
         printk(KERN_ERR "%s: Invalid command flag: chose one of AWAKE_ALL or REMOVE! \n", MODNAME);
         return -1;
     }
 
     // controllo i permessi associati al tag service
-    write_lock(&lock_array[tag]);
+    read_lock(&lock_array[tag]);
 
     if(check_tag_permission(tag) == -1){
-        write_unlock(&lock_array[tag]);
-        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted! \n", MODNAME, tag);
+        read_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted or doesn't exist! \n", MODNAME, tag);
         return -1;
     
     }
 
     // se i permessi sono corretti accedo al tag service per la ricezione del messaggio
     if(tags[tag]==NULL){
-        write_unlock(&lock_array[tag]);
-        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d! \n", MODNAME, tag);
+        read_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d this tag doesn't exist! \n", MODNAME, tag);
         return -1;
     }
 
     // procedo al risveglio dei thread in attesa su ogni livello del tag service
     if(command == AWAKE_ALL){
 
-        int i;
         for(i=0;i<LEVELS;i++){
 
             spin_lock(&(tags[tag]->levels_locks[i]));
@@ -569,6 +570,7 @@ int tag_ctl(int tag, int command){
             // se il livello esiste, risveglio la sua waitqueue
             if(tags[tag]->levels[i] != NULL){
 
+                tags[tag]->levels[i]->awake = 1;
                 wake_up_all(&(tags[tag]->levels[i]->wq));
                 spin_unlock(&(tags[tag]->levels_locks[i]));
 
@@ -577,21 +579,60 @@ int tag_ctl(int tag, int command){
             }
         }
 
-        write_unlock(&lock_array[tag]);
+        read_unlock(&lock_array[tag]);
+
+        printk(KERN_INFO "%s: Succesfully awoken all receivers threads on tag %d! \n", MODNAME, tag);
 
         return 0;
 
     }else if( command == REMOVE){
 
-        
+        read_unlock(&lock_array[tag]);
+        write_lock(&lock_array[tag]);
+
+        for(i=0;i<LEVELS;i++){
+
+            spin_lock(&(tags[tag]->levels_locks[i]));
+
+            // controllo che non ci siano thread in attesa su questo tag
+            if(tags[tag]->levels[i] != NULL){
+
+                spin_unlock(&(tags[tag]->levels_locks[i]));
+                write_unlock(&lock_array[tag]);
+                printk(KERN_ERR "%s: Error removing tag %d: unable to remove: this tag is currently being used! \n", MODNAME, tag);
+                return -1;
+
+            }else{
+                spin_unlock(&(tags[tag]->levels_locks[i]));
+            }
+        }
+
+        // se non ho receivers su questo tag posso rimuoverlo e deallocare le strutture corrispondenti
+
+        // dealloco la struttura relativa al tag vero e proprio
+        kfree(tags[tag]);
+        tags[tag] = NULL;
+
+        // resetto i valori della struttura dati relativa alle info del tag
+        tag_descriptors_info_array[tag]->key = -1;
+        tag_descriptors_info_array[tag]->perm = -1;
+
+        // indico come libero lo slot relativo al tag nell' array che costituisce la mappa dei tag in uso
+        spin_lock(&tag_descriptors_header_lock);
+        tag_descriptors_header_list[tag] = -1;
+        spin_unlock(&tag_descriptors_header_lock);
+
+        write_unlock(&lock_array[tag]);
+
+        printk(KERN_INFO "%s: Tag %d was succesfully removed! \n", MODNAME, tag);
+
+        return 0;
+
+    }else{
+
+        printk(KERN_ERR "%s: Error in tag_ctl on tag %d! \n", MODNAME, tag);
+        return -1;
     }
-
-
-
-
-
-
-
 
 }
 
