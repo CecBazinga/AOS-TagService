@@ -21,6 +21,9 @@
 #define PERM_NONE 0
 #define PERM_ALL 1
 
+#define AWAKE_ALL 0
+#define REMOVE 1
+
 #define MAXSIZE 4096
 
 

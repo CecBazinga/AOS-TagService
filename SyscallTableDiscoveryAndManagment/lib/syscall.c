@@ -30,7 +30,6 @@ int init_tag_service(void){
         }
         tag_descriptors_info_array[i]->key = -1;
         tag_descriptors_info_array[i]->perm = -1;
-        //tag_descriptors_info_array[i]->euid.val = -1;
 
         // inizializzazione degli rwlock
         rwlock_init(&lock_array[i]);
@@ -443,10 +442,10 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
     // accedo al livello desiderato
     spin_lock(&(tags[tag]->levels_locks[level]));
 
-    // se il livello non è inizializzato non ci sono receivers, quindi lo inizializzo con un nuovo buffer
+    // se il livello non è inizializzato non ci sono receivers, quindi lo inizializzo ed alloco un nuovo buffer
     if(tags[tag]->levels[level]==NULL){
 
-        // inizializzo la struct level, il suo buffer, la sua waitqueue ed il numero di thread in waiting
+        // inizializzo la struct level, il suo buffer, la sua waitqueue ed il numero di thread in waiting su quel livello
         tags[tag]->levels[level] = kmalloc(sizeof(struct tag_level), GFP_KERNEL);
 
         if(tags[tag]->levels[level] == NULL){
@@ -500,16 +499,6 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
         }
 
         // risveglio dovuto ad una send
-        /*
-        char *message = kmalloc(size*sizeof(char), GFP_KERNEL);
-
-        if(message == NULL){
-            printk(KERN_ERR "%s: Error during receviver buffer allocation for thread %d on tag service %d on level %d! \n", MODNAME, current->pid, tag, level);
-            remove_and_deallocate_level(tag, level);
-            return -1;
-        }
-        */
-
         int copied = copy_to_user(buffer, tags[tag]->levels[level]->buffer, min(size, tags[tag]->levels[level]->size));
         
         if(copied != 0){
@@ -525,8 +514,6 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
 
         printk(KERN_INFO "%s: Message red from tag %d on level %d from thread %d\n",MODNAME, tag, level, current->pid);
 
-        //kfree(message);
-
         remove_and_deallocate_level(tag, level);
             
         return 0;
@@ -536,6 +523,75 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
         printk(KERN_ERR "%s: Somenthing wrong happened during awake of threads on tag %d on level %d \n",MODNAME, tag, level);
         return -1;
     }
+
+}
+
+
+
+
+
+
+
+
+
+int tag_ctl(int tag, int command){
+
+    if (command != AWAKE_ALL && command != REMOVE){
+        printk(KERN_ERR "%s: Invalid command flag: chose one of AWAKE_ALL or REMOVE! \n", MODNAME);
+        return -1;
+    }
+
+    // controllo i permessi associati al tag service
+    write_lock(&lock_array[tag]);
+
+    if(check_tag_permission(tag) == -1){
+        write_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Cannot access tag-service with tag descriptor %d : insufficient permissions or tag service corrupted! \n", MODNAME, tag);
+        return -1;
+    
+    }
+
+    // se i permessi sono corretti accedo al tag service per la ricezione del messaggio
+    if(tags[tag]==NULL){
+        write_unlock(&lock_array[tag]);
+        printk(KERN_ERR "%s: Error in tag service with tag descriptor %d! \n", MODNAME, tag);
+        return -1;
+    }
+
+    // procedo al risveglio dei thread in attesa su ogni livello del tag service
+    if(command == AWAKE_ALL){
+
+        int i;
+        for(i=0;i<LEVELS;i++){
+
+            spin_lock(&(tags[tag]->levels_locks[i]));
+
+            // se il livello esiste, risveglio la sua waitqueue
+            if(tags[tag]->levels[i] != NULL){
+
+                wake_up_all(&(tags[tag]->levels[i]->wq));
+                spin_unlock(&(tags[tag]->levels_locks[i]));
+
+            }else{
+                spin_unlock(&(tags[tag]->levels_locks[i]));
+            }
+        }
+
+        write_unlock(&lock_array[tag]);
+
+        return 0;
+
+    }else if( command == REMOVE){
+
+        
+    }
+
+
+
+
+
+
+
 
 }
 
