@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <sys/fsuid.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 //#include <time.h>
 
@@ -16,4 +17,6 @@
 #define PERM_NONE 0
 #define PERM_ALL 1
 
-#define TOTAL_THREADS 10
+#define TOTAL_THREADS 11000
+#define RECEIVERS 10000
+#define SENDERS 1000

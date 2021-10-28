@@ -514,7 +514,7 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
         
         if(copied != 0){
 
-            kfree(message);
+            //kfree(message);
 
             printk(KERN_ERR "%s: Error copying message to user space for thread %d on tag %d and level %d\n",MODNAME, current->pid, tag, level);
 
@@ -523,9 +523,9 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
             return -1;
         }
 
-        printk(KERN_INFO "%s: Message red from tag %d on level %d from thread %d is: %s\n",MODNAME, tag, level, current->pid, message);
+        printk(KERN_INFO "%s: Message red from tag %d on level %d from thread %d\n",MODNAME, tag, level, current->pid);
 
-        kfree(message);
+        //kfree(message);
 
         remove_and_deallocate_level(tag, level);
             
