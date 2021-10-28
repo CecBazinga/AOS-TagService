@@ -65,11 +65,23 @@ asmlinkage long sys_tag_receive(int tag, int level, char* buffer, size_t size){
 }
 
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
+__SYSCALL_DEFINEx(2, _tag_ctl, int, tag, int, command){
+#else
+asmlinkage long sys_tag_ctl(int tag, int command){
+#endif
+
+        return tag_ctl(tag, command);
+
+}
+
+
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
 static unsigned long sys_tag_get = (unsigned long) __x64_sys_tag_get;
 static unsigned long sys_tag_send = (unsigned long) __x64_sys_tag_send;	
-static unsigned long sys_tag_receive = (unsigned long) __x64_sys_tag_receive;	
+static unsigned long sys_tag_receive = (unsigned long) __x64_sys_tag_receive;
+static unsigned long sys_tag_ctl = (unsigned long) __x64_sys_tag_ctl;	
 #else
 #endif
 
@@ -231,11 +243,13 @@ int init_module(void) {
         hacked_syscall_tbl[free_entries[0]] = (unsigned long*)sys_tag_get;
 		hacked_syscall_tbl[free_entries[1]] = (unsigned long*)sys_tag_send;
 		hacked_syscall_tbl[free_entries[2]] = (unsigned long*)sys_tag_receive;
+		hacked_syscall_tbl[free_entries[3]] = (unsigned long*)sys_tag_ctl;
 
         protect_memory();
 	printk("%s: a sys_call tag_get with 3 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[0]);
 	printk("%s: a sys_call tag_send with 4 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[1]);
 	printk("%s: a sys_call tag_receive with 4 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[2]);	
+	printk("%s: a sys_call tag_ctl with 2 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[3]);
 #else
 #endif
 
