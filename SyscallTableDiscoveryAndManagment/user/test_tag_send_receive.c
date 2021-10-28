@@ -1,16 +1,5 @@
 #include "config.h"
 
-struct thread_arguments{
-
-    int tag;
-    int level;
-    char* buffer;
-    size_t size;
-    int thread_id;
-};
-
-
-
 void* receive(struct thread_arguments *the_struct){
 
     //printf("Thread: %d. Before receive buffer is :%s\n", the_struct->thread_id, the_struct->buffer);
