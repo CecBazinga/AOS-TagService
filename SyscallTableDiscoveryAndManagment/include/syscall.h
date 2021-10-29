@@ -54,7 +54,7 @@ struct tag{
 
 
 int init_tag_service(void);
-int free_tag_service(void);
+void free_tag_service(void);
 
 int tag_get(int key, int command, int permission);
 

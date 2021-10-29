@@ -38,7 +38,16 @@ __SYSCALL_DEFINEx(3, _tag_get, int, key, int, command, int, permission){
 asmlinkage long sys_tag_get(int key, int command, int permission){
 #endif
 
-        return tag_get(key,command,permission);
+		int ret;
+		if(!try_module_get(THIS_MODULE)){
+			printk(KERN_ERR "%s: Unable to lock module! \n", MODNAME);
+			return -1;
+		}
+
+        ret = tag_get(key,command,permission);
+		module_put(THIS_MODULE);
+
+		return ret;
 
 }
 
@@ -49,7 +58,16 @@ __SYSCALL_DEFINEx(4, _tag_send, int, tag, int, level, char*, buffer, size_t, siz
 asmlinkage long sys_tag_send(int tag, int level, char* buffer, size_t size){
 #endif
 
-        return tag_send(tag,level,buffer,size);
+		int ret;
+		if(!try_module_get(THIS_MODULE)){
+			printk(KERN_ERR "%s: Unable to lock module! \n", MODNAME);
+			return -1;
+		}
+
+        ret = tag_send(tag,level,buffer,size);
+		module_put(THIS_MODULE);
+
+		return ret;
 
 }
 
@@ -60,7 +78,16 @@ __SYSCALL_DEFINEx(4, _tag_receive, int, tag, int, level, char*, buffer, size_t, 
 asmlinkage long sys_tag_receive(int tag, int level, char* buffer, size_t size){
 #endif
 
-        return tag_receive(tag, level, buffer, size);
+		int ret;
+		if(!try_module_get(THIS_MODULE)){
+			printk(KERN_ERR "%s: Unable to lock module! \n", MODNAME);
+			return -1;
+		}
+
+        ret = tag_receive(tag, level, buffer, size);
+		module_put(THIS_MODULE);
+
+		return ret;
 
 }
 
@@ -71,7 +98,16 @@ __SYSCALL_DEFINEx(2, _tag_ctl, int, tag, int, command){
 asmlinkage long sys_tag_ctl(int tag, int command){
 #endif
 
-        return tag_ctl(tag, command);
+		int ret;
+		if(!try_module_get(THIS_MODULE)){
+			printk(KERN_ERR "%s: Unable to lock module! \n", MODNAME);
+			return -1;
+		}
+
+        ret = tag_ctl(tag, command);
+		module_put(THIS_MODULE);
+
+		return ret;
 
 }
 
@@ -205,22 +241,15 @@ unprotect_memory(void)
 
 int init_module(void) {
 	
+	int i,j;
+		
+    printk("%s: initializing\n",MODNAME);
 
 	int res = init_tag_service();
 	if(res!=0){
 		printk("%s: failed to initialize_tag_service_structures\n",MODNAME);
 		return -1;
 	}
-
-	
-
-
-
-
-
-	int i,j;
-		
-    printk("%s: initializing\n",MODNAME);
 	
 	syscall_table_finder();
 
@@ -262,13 +291,16 @@ int init_module(void) {
 
 void cleanup_module(void) {
                 
-	//TODO: liberare strutture dati
-	int res = free_tag_service();
+
+	// liberazione delle strutture dati del tag service
+	printk("%s: Freeing tag-service subsystem resources...\n",MODNAME);
+	free_tag_service();
+	printk("%s: Done!\n",MODNAME);
 
 #ifdef SYS_CALL_INSTALL
 	cr0 = read_cr0();
         unprotect_memory();
-        // rimozione delle syscall inserite da fare qui
+        // rimozione delle syscall inserite
         hacked_syscall_tbl[free_entries[0]] = (unsigned long*)hacked_ni_syscall;
 		hacked_syscall_tbl[free_entries[1]] = (unsigned long*)hacked_ni_syscall;
 		hacked_syscall_tbl[free_entries[2]] = (unsigned long*)hacked_ni_syscall;

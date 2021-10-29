@@ -14,6 +14,9 @@ struct tag_descriptor_info *tag_descriptors_info_array[TAGS] = { NULL };
 rwlock_t lock_array[TAGS];
 struct tag *tags[TAGS] = { NULL };
 
+//TODO: definire un unico modname in qualche header file
+
+//TODO: descrizione funzioni, commenti, pulizia codice
 
 
 // funzione che inizializza l'array per le info dei singoli tag service e l'array di rwlocks
@@ -41,25 +44,39 @@ int init_tag_service(void){
 
 
 
+void free_tag_service(void){
 
-int free_tag_service(void){
-
-    int i;
+    int i,j;
 
     for(i=0; i<TAGS; i++){
 
         if(tag_descriptors_info_array[i] != NULL){
 
-            write_lock(&(lock_array[i]));
             kfree(tag_descriptors_info_array[i]); 
             tag_descriptors_info_array[i] = NULL;
-            write_unlock(&(lock_array[i]));
 
+            if(tags[i] != NULL){
+              
+                for(j=0;j<LEVELS;j++){
+
+                    if(tags[i]->levels[j] != NULL){
+
+                        if(tags[i]->levels[j]->buffer != NULL){
+                            kfree(tags[i]->levels[j]->buffer);
+                        }
+
+                        kfree(tags[i]->levels[j]);
+                    }
+                }
+
+                kfree(tags[i]);
+                tags[i] = NULL;
+            }
         }
     }
 
-    printk("%s: Tag service structures have been removed succesfully! \n", MODNAME);
-    return 0;
+    printk(KERN_INFO "%s: Tag service structures have been removed succesfully! \n", MODNAME);
+    return;
 }
 
 
