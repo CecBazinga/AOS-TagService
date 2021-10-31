@@ -14,12 +14,6 @@ struct tag_descriptor_info *tag_descriptors_info_array[TAGS] = { NULL };
 rwlock_t lock_array[TAGS];
 struct tag *tags[TAGS] = { NULL };
 
-//TODO: testare device driver in concorrenza
-
-//TODO: testare in concorrenza le create e ctl
-
-//TODO: aggiungere contatori nei test delle send_receive
-
 //TODO: descrizione funzioni, commenti, pulizia codice
 
 

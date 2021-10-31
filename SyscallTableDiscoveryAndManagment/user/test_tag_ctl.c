@@ -1,6 +1,23 @@
 #include "config.h"
 
 
+void* receive(struct thread_arguments *the_struct){
+
+    int ret;
+
+    ret = syscall(174,the_struct->tag, the_struct->level, the_struct->buffer, the_struct->size); 
+    if(ret != 0){
+        printf("Thread: %d. Something went wrong during receive\n", the_struct->thread_id);
+        pthread_exit(NULL);
+    }
+
+    printf("Thread: %d. After receive buffer is :%s\n", the_struct->thread_id, the_struct->buffer);
+    pthread_exit(NULL);
+}
+
+
+
+
 int main(int argc, char** argv){
 
     int i, ret, tag_id;
