@@ -12,7 +12,7 @@ char *concat(char *buff1, char *buff2) {
     int new_size = strlen(buff1) + strlen(buff2) + 1; 
 
     // alloco il nuovo buffer
-    char* new_buffer = kmalloc(sizeof(char)*new_size, GFP_KERNEL);
+    char* new_buffer = kzalloc(sizeof(char)*new_size, GFP_KERNEL);
     if(new_buffer == NULL){
         printk(KERN_ERR "%s: Error during device driver buffer allocation! \n", MODNAME);
         return NULL;
@@ -29,7 +29,7 @@ char *concat(char *buff1, char *buff2) {
 int init_device_driver(void){
 
     // allocazione buffer header
-    header = kmalloc(sizeof(char)*SINGLE_DEVICE_LINE, GFP_KERNEL);
+    header = kzalloc(sizeof(char)*SINGLE_DEVICE_LINE, GFP_KERNEL);
     if(header == NULL){
         printk(KERN_ERR "%s: Error during device driver header buffer allocation! \n", MODNAME);
         return -1;
@@ -102,9 +102,10 @@ static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) 
     rwlock_t *locks_array = get_tag_lock_array_ptr();
     struct tag **tags_array = get_tag_array_ptr();
 
-    char *final_buffer;
+    buffer_size = 0;
+    char *final_buffer = NULL;
     char *old_buffer = header;
-    char *single_level_buffer = kmalloc(sizeof(char)*SINGLE_DEVICE_LINE, GFP_KERNEL);
+    char *single_level_buffer = kzalloc(sizeof(char)*SINGLE_DEVICE_LINE, GFP_KERNEL);
     if(single_level_buffer == NULL){
         printk(KERN_ERR "%s: Error during device driver single level buffer allocation! \n", MODNAME);
         return -1;
@@ -170,10 +171,16 @@ static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) 
     kfree(single_level_buffer);
 
     // trasferisco le info generate verso lo user space
-    buffer_size = strlen(final_buffer);
+    if(final_buffer != NULL){
+        buffer_size = strlen(final_buffer);
+    }
+    
+
+    if(len > buffer_size){
+        len = buffer_size;
+    }
 
     if(*off > buffer_size) {
-
         return 0;
     } 
     if((buffer_size - *off) < len){

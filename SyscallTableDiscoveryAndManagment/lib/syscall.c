@@ -48,7 +48,7 @@ int init_tag_service(void){
 
     for(i=0; i<TAGS; i++){
 
-        tag_descriptors_info_array[i] = kmalloc(sizeof(struct tag_descriptor_info), GFP_KERNEL);
+        tag_descriptors_info_array[i] = kzalloc(sizeof(struct tag_descriptor_info), GFP_KERNEL);
         if(tag_descriptors_info_array[i] == NULL){
             printk(KERN_ERR "%s: Error during tag service structure allocation! \n", MODNAME);
             return -1;
@@ -108,7 +108,7 @@ struct tag* create_tag(void){
 
     int i;
 
-    struct tag *the_tag = kmalloc(sizeof(struct tag), GFP_KERNEL);
+    struct tag *the_tag = kzalloc(sizeof(struct tag), GFP_KERNEL);
 
     // errore durante l'allocazione di memoria
     if(the_tag == NULL){
@@ -408,7 +408,7 @@ int tag_send(int tag, int level, char* buffer, size_t size){
 
     
     // copio il messaggio nel buffer del livello del tag service
-    tags[tag]->levels[level]->buffer = kmalloc(size*sizeof(char), GFP_KERNEL);
+    tags[tag]->levels[level]->buffer = kzalloc(size*sizeof(char), GFP_KERNEL);
 
     if(tags[tag]->levels[level]->buffer == NULL){
         spin_unlock(&(tags[tag]->levels_locks[level]));
@@ -485,7 +485,7 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
     if(tags[tag]->levels[level]==NULL){
 
         // inizializzo la struct level, il suo buffer, la sua waitqueue ed il numero di thread in waiting su quel livello
-        tags[tag]->levels[level] = kmalloc(sizeof(struct tag_level), GFP_KERNEL);
+        tags[tag]->levels[level] = kzalloc(sizeof(struct tag_level), GFP_KERNEL);
 
         if(tags[tag]->levels[level] == NULL){
             spin_unlock(&(tags[tag]->levels_locks[level]));

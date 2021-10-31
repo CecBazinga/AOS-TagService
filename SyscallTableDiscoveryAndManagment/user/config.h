@@ -3,8 +3,11 @@
 #include <sys/fsuid.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <string.h>
+#include <stdbool.h>
 
-//#include <time.h>
+
 
 #define TAGS 256
 #define LEVELS 32
@@ -24,9 +27,15 @@
 #define RECEIVERS 10000
 #define SENDERS 1000
 
+#define PAGE 4096
+#define USER_DEVICE_BUFF 500
+
+
 char *buffer = "PIPPO PLUTO PAPERINO MINNIE ZIOPAPERONE QUI QUO QUA";
 
-int atomic_tests_counter = 0;
+char *device = "/dev/tag_system_device";
+
+bool sync_barrier_1, sync_barrier_2;
 
 
 struct thread_arguments{
@@ -37,6 +46,3 @@ struct thread_arguments{
     size_t size;
     int thread_id;
 };
-
-
-void* receive(struct thread_arguments *the_struct);

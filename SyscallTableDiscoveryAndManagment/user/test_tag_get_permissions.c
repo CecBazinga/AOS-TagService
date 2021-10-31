@@ -9,6 +9,4 @@ int main(int argc, char** argv){
 	sleep(2);
 	syscall(134,140,OPEN,PERM_ALL); //dovrebbe dare errore sulla open
 
-	
-	
 }

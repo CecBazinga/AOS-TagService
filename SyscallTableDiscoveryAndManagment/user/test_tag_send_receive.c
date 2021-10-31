@@ -8,12 +8,10 @@ void* receive(struct thread_arguments *the_struct){
     if(ret != 0){
         printf("Thread: %d. Something went wrong during receive\n", the_struct->thread_id);
          pthread_exit(NULL);
-         return;
     }
 
     printf("Thread: %d. After receive buffer is :%s\n", the_struct->thread_id, the_struct->buffer);
     pthread_exit(NULL);
-    return;
 }
 
 
@@ -25,12 +23,9 @@ void* send(struct thread_arguments *the_struct){
     ret = syscall(156,the_struct->tag, the_struct->level, the_struct->buffer, the_struct->size);
     if(ret != 0){
         printf("Thread: %d. Something went wrong during send\n", the_struct->thread_id);
-        pthread_exit(NULL);
-        return;
     }
     
     pthread_exit(NULL);
-    return;
 }
 
 
