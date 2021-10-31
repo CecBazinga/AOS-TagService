@@ -16,9 +16,11 @@ struct tag *tags[TAGS] = { NULL };
 
 //TODO: sistemare padding del device driver
 
-//TODO: testare device driver in concorrenza?
+//TODO: testare device driver in concorrenza
 
 //TODO: testare in concorrenza le create e ctl
+
+//TODO: aggiungere contatori nei test delle send_receive
 
 //TODO: descrizione funzioni, commenti, pulizia codice
 

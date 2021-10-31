@@ -4,7 +4,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alessandro Amici <a.amici@outlook.it>");
 MODULE_DESCRIPTION("TAG SERVICE");
 
-char *header = "Tag-key        Tag-creator        Tag-level        Waiting-threads\n";
+char *header;
 
 char *concat(char *buff1, char *buff2) {
    
@@ -21,7 +21,6 @@ char *concat(char *buff1, char *buff2) {
     // copio e concateno i buffer in un unico buffer
     strcpy(new_buffer,buff1);
     strcat(new_buffer,buff2); 
-    printk(KERN_INFO "%s: BUFFER IS %s \n", MODNAME, new_buffer);
 
     return new_buffer;
 }
@@ -29,6 +28,17 @@ char *concat(char *buff1, char *buff2) {
 
 int init_device_driver(void){
 
+    // allocazione buffer header
+    header = kmalloc(sizeof(char)*SINGLE_DEVICE_LINE, GFP_KERNEL);
+    if(header == NULL){
+        printk(KERN_ERR "%s: Error during device driver header buffer allocation! \n", MODNAME);
+        return -1;
+    }
+
+    sprintf(header,"%-15s %-15s %-15s %-15s\n", "TAG-KEY", "TAG-CREATOR", "TAG-LEVEL", "WAITING-THREADS");
+
+
+    // registrazione device driver
     major = register_chrdev(0, DEVICE_NAME, &fops);
 
 	if (major < 0) {
@@ -44,6 +54,10 @@ int init_device_driver(void){
 
 void free_device_driver(void){
 
+    // deallocazione buffer header
+    kfree(header);
+
+    // deregistrazione device driver
     unregister_chrdev(major, DEVICE_NAME);
 	printk(KERN_INFO "%s: new device unregistered, it was assigned major number %d\n",MODNAME, major);
 
