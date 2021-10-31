@@ -1,5 +1,7 @@
 #include "device_driver.h"
 
+header = "Tag-key       Tag-creator       Tag-level       Waiting-threads\n";
+
 //TODO: chiamare register e unregister nell'init module del tag service
 static int dev_open(struct inode *inode, struct file *file) {
 
@@ -29,23 +31,59 @@ static ssize_t dev_write(struct file *filp, const char *buff, size_t len, loff_t
 
 static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) {
 
-  printk("%s: Device file with major %d: somebody called a read operation!\n",MODNAME,major);
+    printk("%s: Device file with major %d: somebody called a read operation!\n",MODNAME,major);
 
-  if(*off > the_object->valid_bytes) {
+    //TODO: nella read ciclare sui tag ed i livelli
 
-	 return 0;
-  } 
-  if((the_object->valid_bytes - *off) < len) len = the_object->valid_bytes - *off;
-  ret = copy_to_user(buff,&(the_object->stream_content[*off]),len);
-  
-  *off += (len - ret);
-  
+    
+    //TODO: ricordarsi le free dei buffer che alloco
 
-  return len - ret;
+
+    if(*off > the_object->valid_bytes) {
+
+        return 0;
+    } 
+    if((the_object->valid_bytes - *off) < len) len = the_object->valid_bytes - *off;
+    ret = copy_to_user(buff,&(the_object->stream_content[*off]),len);
+    
+    *off += (len - ret);
+    
+
+    return len - ret;
 }
 
-//TODO: funzione ausiliare per append
 
-//TODO: funzione ausiliare per header
 
-//TODO: nella read ciclare sui tag ed i livelli
+char *concat(char *buff1, char *buff2) {
+   
+    // Determine new size
+    int new_size = strlen(buff1) + strlen(buff2) + 1; 
+
+    // Allocate new buffer
+    char * newBuffer = kmalloc(sizeof(char)*new_size, GFP_KERNEL);
+    if(newBuffer == NULL){
+        printk(KERN_ERR "%s: Error during device driver buffer allocation! \n", MODNAME);
+        return NULL;
+    }
+
+    // do the copy and concat
+    strcpy(newBuffer,buff1);
+    strcpy(newBuffer,buff2); 
+
+    return new_buffer;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
