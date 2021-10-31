@@ -9,6 +9,7 @@
 #include <linux/rwlock_api_smp.h>
 #include <linux/uaccess.h>
 
+#define MODNAME "TAG SERVICE"
 
 #define TAGS 256
 #define LEVELS 32
@@ -64,8 +65,8 @@ int tag_receive(int tag, int level, char* buffer, size_t size);
 
 int tag_ctl(int tag, int command);
 
-struct tag **get_tag_array_ptr(void);
+struct tag** get_tag_array_ptr(void);
 
-struct tag_descriptor_info **get_tag_info_array_ptr(void);
+struct tag_descriptor_info** get_tag_info_array_ptr(void);
 
-struct rwlock_t **get_tag_lock_array_ptr(void);
+rwlock_t* get_tag_lock_array_ptr(void);

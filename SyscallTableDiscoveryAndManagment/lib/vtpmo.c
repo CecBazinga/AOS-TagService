@@ -20,7 +20,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Francesco Quaglia <francesco.quaglia@uniroma2.it>");
 MODULE_DESCRIPTION("discovers the validity of virtual to physical mapping starting from a virtual address passed in input");
 
-#define MODNAME "VTMPO"
+#define MODNAME "TAG SERVICE"
 
 // get the current page table 
 static inline unsigned long _read_cr3(void) {

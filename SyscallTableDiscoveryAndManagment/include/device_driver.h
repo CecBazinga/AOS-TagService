@@ -16,7 +16,6 @@ static ssize_t dev_write(struct file *, const char *, size_t, loff_t *);
 #define DEVICE_NAME "tag_system_device"  /* Device file name in /dev/ - not mandatory  */
 
 static int major;            /* Major number assigned to device driver */
-char *header = "Tag-key        Tag-creator        Tag-level        Waiting-threads\n";
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
 #define get_major(session)	MAJOR(session->f_inode->i_rdev)
@@ -36,4 +35,8 @@ static struct file_operations fops = {
   .write = dev_write,
   .read = dev_read
 };
+
+int init_device_driver(void);
+
+void free_device_driver(void);
 

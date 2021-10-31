@@ -79,7 +79,7 @@ int main(int argc, char** argv){
         printf("Error: remove should fail because there are threads waiting on this tag %d!\n", tag_id);
     }
 
-
+    /*
     // awake all con receivers nel tag service: dovrebbe svegliare i thread su tutti i livelli
     ret = syscall(177,tag_id,AWAKE_ALL);
     if(ret == -1){
@@ -99,7 +99,7 @@ int main(int argc, char** argv){
     }else if(ret == 0){
         printf("Correct: removed successfully tag %d !\n", tag_id);
     }
-
+    */
 
     // attessa dei thread receivers
     for(i=0;i<RECEIVERS/100;i++){

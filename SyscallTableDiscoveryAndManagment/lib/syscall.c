@@ -4,7 +4,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alessandro Amici <a.amici@outlook.it>");
 MODULE_DESCRIPTION("TAG SERVICE");
 
-#define MODNAME "TAG SERVICE"
+//#define MODNAME "TAG SERVICE"
 
 int tag_descriptors_header_list[TAGS] = {[0 ... (TAGS-1)] -1};
 spinlock_t tag_descriptors_header_lock;
@@ -14,28 +14,28 @@ struct tag_descriptor_info *tag_descriptors_info_array[TAGS] = { NULL };
 rwlock_t lock_array[TAGS];
 struct tag *tags[TAGS] = { NULL };
 
-//TODO: definire un unico modname in qualche header file
+//TODO: sistemare padding del device driver
 
-//TODO: device driver e testarlo
+//TODO: testare device driver in concorrenza?
 
 //TODO: testare in concorrenza le create e ctl
 
 //TODO: descrizione funzioni, commenti, pulizia codice
 
 
-struct tag **get_tag_array_ptr(void){
+struct tag** get_tag_array_ptr(void){
 
     return tags;
 }
 
 
-struct tag_descriptor_info **get_tag_info_array_ptr(void){
+struct tag_descriptor_info** get_tag_info_array_ptr(void){
 
     return tag_descriptors_info_array;
 }
 
 
-struct rwlock_t *get_tag_lock_array_ptr(void){
+rwlock_t* get_tag_lock_array_ptr(void){
 
     return lock_array;
 }

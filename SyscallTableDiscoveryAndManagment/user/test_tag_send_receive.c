@@ -59,7 +59,7 @@ int main(int argc, char** argv){
 
     }
 
-
+    
     for(i=0; i<SENDERS; i++){
 
         if((i%2)==0){
@@ -77,6 +77,7 @@ int main(int argc, char** argv){
 
         
     }
+    
 
 
     for(i=0; i<RECEIVERS; i++){
@@ -98,7 +99,7 @@ int main(int argc, char** argv){
     }
 
 
-
+    
     for(i=0; i<SENDERS; i++){
 
         if((i%2)!=0){

@@ -22,11 +22,8 @@
 #include "../include/usctm.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Francesco Quaglia <framcesco.quaglia@uniroma2.it>");
-MODULE_DESCRIPTION("USCTM");
-
-#define MODNAME "USCTM"
-
+MODULE_AUTHOR("Francesco Quaglia <francesco.quaglia@uniroma2.it>");
+MODULE_DESCRIPTION("TAG SERVICE");
 
 
 #define SYS_CALL_INSTALL
@@ -197,8 +194,8 @@ void syscall_table_finder(void){
 		){
 			// check if candidate maintains the syscall_table
 			if(validate_page( (unsigned long *)(candidate)) ){
-				printk("%s: syscall table found at %px\n",MODNAME,(void*)(hacked_syscall_tbl));
-				printk("%s: sys_ni_syscall found at %px\n",MODNAME,(void*)(hacked_ni_syscall));
+				printk(KERN_INFO "%s: syscall table found at %px\n",MODNAME,(void*)(hacked_syscall_tbl));
+				printk(KERN_INFO "%s: sys_ni_syscall found at %px\n",MODNAME,(void*)(hacked_ni_syscall));
 				break;
 			}
 		}
@@ -243,25 +240,35 @@ int init_module(void) {
 	
 	int i,j;
 		
-    printk("%s: initializing\n",MODNAME);
+    printk("%s: initializing...\n",MODNAME);
 
+	// inizializzazione tag service
 	int res = init_tag_service();
 	if(res!=0){
-		printk("%s: failed to initialize_tag_service_structures\n",MODNAME);
+		printk(KERN_ERR "%s: failed to initialize_tag_service_structures\n",MODNAME);
+		return -1;
+	}
+
+
+	// inizializzazione device driver
+	res = init_device_driver();
+	if(res != 0){
 		return -1;
 	}
 	
+
+	// inserimento syscall nella syscall table
 	syscall_table_finder();
 
 	if(!hacked_syscall_tbl){
-		printk("%s: failed to find the sys_call_table\n",MODNAME);
+		printk(KERN_ERR "%s: failed to find the sys_call_table\n",MODNAME);
 		return -1;
 	}
 
 	j=0;
 	for(i=0;i<ENTRIES_TO_EXPLORE;i++)
 		if(hacked_syscall_tbl[i] == hacked_ni_syscall){
-			printk("%s: found sys_ni_syscall entry at syscall_table[%d]\n",MODNAME,i);	
+			printk(KERN_INFO "%s: found sys_ni_syscall entry at syscall_table[%d]\n",MODNAME,i);	
 			free_entries[j++] = i;
 			if(j>=MAX_FREE) break;
 		}
@@ -275,14 +282,14 @@ int init_module(void) {
 		hacked_syscall_tbl[free_entries[3]] = (unsigned long*)sys_tag_ctl;
 
         protect_memory();
-	printk("%s: a sys_call tag_get with 3 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[0]);
-	printk("%s: a sys_call tag_send with 4 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[1]);
-	printk("%s: a sys_call tag_receive with 4 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[2]);	
-	printk("%s: a sys_call tag_ctl with 2 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[3]);
+	printk(KERN_INFO "%s: a sys_call tag_get with 3 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[0]);
+	printk(KERN_INFO "%s: a sys_call tag_send with 4 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[1]);
+	printk(KERN_INFO "%s: a sys_call tag_receive with 4 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[2]);	
+	printk(KERN_INFO "%s: a sys_call tag_ctl with 2 parameters has been installed on the sys_call_table at displacement %d\n",MODNAME,free_entries[3]);
 #else
 #endif
 
-        printk("%s: module correctly mounted\n",MODNAME);
+        printk(KERN_INFO "%s: module correctly mounted\n",MODNAME);
 
         return 0;
 
@@ -293,23 +300,29 @@ void cleanup_module(void) {
                 
 
 	// liberazione delle strutture dati del tag service
-	printk("%s: Freeing tag-service subsystem resources...\n",MODNAME);
+	printk(KERN_INFO "%s: Freeing tag-service subsystem resources...\n",MODNAME);
 	free_tag_service();
-	printk("%s: Done!\n",MODNAME);
+	printk(KERN_INFO "%s: Done!\n",MODNAME);
 
-#ifdef SYS_CALL_INSTALL
+	// rimozione del device driver
+	free_device_driver();
+
+	// ripristino della syscall table al suo stato originale
+	#ifdef SYS_CALL_INSTALL
 	cr0 = read_cr0();
-        unprotect_memory();
-        // rimozione delle syscall inserite
-        hacked_syscall_tbl[free_entries[0]] = (unsigned long*)hacked_ni_syscall;
-		hacked_syscall_tbl[free_entries[1]] = (unsigned long*)hacked_ni_syscall;
-		hacked_syscall_tbl[free_entries[2]] = (unsigned long*)hacked_ni_syscall;
-		hacked_syscall_tbl[free_entries[3]] = (unsigned long*)hacked_ni_syscall;
-        protect_memory();
-	printk("%s: Sys_calls at displacement: %d, %d, %d, %d have been restored to sys_ni_syscall!\n",MODNAME,free_entries[0], free_entries[1], 
+
+	unprotect_memory();
+	hacked_syscall_tbl[free_entries[0]] = (unsigned long*)hacked_ni_syscall;
+	hacked_syscall_tbl[free_entries[1]] = (unsigned long*)hacked_ni_syscall;
+	hacked_syscall_tbl[free_entries[2]] = (unsigned long*)hacked_ni_syscall;
+	hacked_syscall_tbl[free_entries[3]] = (unsigned long*)hacked_ni_syscall;
+	protect_memory();
+
+	printk(KERN_INFO "%s: Sys_calls at displacement: %d, %d, %d, %d have been restored to sys_ni_syscall!\n",MODNAME,free_entries[0], free_entries[1], 
 			free_entries[2], free_entries[3]);	
-#else
-#endif
-        printk("%s: shutting down\n",MODNAME);
+	#else
+	#endif
+        
+	printk(KERN_INFO "%s: shutting down\n",MODNAME);
         
 }

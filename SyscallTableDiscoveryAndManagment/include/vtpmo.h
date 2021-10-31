@@ -21,7 +21,6 @@
 #include <linux/syscalls.h>
 
 
-
 int sys_vtpmo(unsigned long vaddr);
 
 

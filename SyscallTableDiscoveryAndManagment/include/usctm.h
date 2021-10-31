@@ -20,7 +20,7 @@
 #include <asm/apic.h>
 #include <linux/syscalls.h>
 #include "vtpmo.h"
-#include "syscall.h"
+#include "device_driver.h"
 
 
 #define ADDRESS_MASK 0xfffffffffffff000//to migrate
@@ -66,3 +66,7 @@ extern int tag_send(int tag, int level, char* buffer, size_t size);
 extern int tag_receive(int tag, int level, char* buffer, size_t size);
 
 extern int tag_ctl(int tag, int command);
+
+extern int init_device_driver(void);
+
+extern void free_device_driver(void);
