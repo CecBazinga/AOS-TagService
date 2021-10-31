@@ -2,28 +2,42 @@
 
 void* receive(struct thread_arguments *the_struct){
 
-    //printf("Thread: %d. Before receive buffer is :%s\n", the_struct->thread_id, the_struct->buffer);
-    syscall(174,the_struct->tag, the_struct->level, the_struct->buffer, the_struct->size); 
-    printf("Thread: %d. After receive buffer is :%s\n", the_struct->thread_id, the_struct->buffer);
+    int ret;
 
+    ret = syscall(174,the_struct->tag, the_struct->level, the_struct->buffer, the_struct->size); 
+    if(ret != 0){
+        printf("Thread: %d. Something went wrong during receive\n", the_struct->thread_id);
+         pthread_exit(NULL);
+         return;
+    }
+
+    printf("Thread: %d. After receive buffer is :%s\n", the_struct->thread_id, the_struct->buffer);
     pthread_exit(NULL);
+    return;
 }
 
 
 
 void* send(struct thread_arguments *the_struct){
 
-    syscall(156,the_struct->tag, the_struct->level, the_struct->buffer, the_struct->size);
+    int ret;
 
+    ret = syscall(156,the_struct->tag, the_struct->level, the_struct->buffer, the_struct->size);
+    if(ret != 0){
+        printf("Thread: %d. Something went wrong during send\n", the_struct->thread_id);
+        pthread_exit(NULL);
+        return;
+    }
+    
     pthread_exit(NULL);
+    return;
 }
 
 
 
 int main(int argc, char** argv){
 	
-    int i;
-    char *buffer = "PIPPO PLUTO PAPERINO MINNIE ZIOPAPERONE QUI QUO QUA";
+    int i, ret;
     size_t size = 60;
     pthread_t tid[TOTAL_THREADS];
     struct thread_arguments *the_struct[TOTAL_THREADS] = { NULL };
@@ -34,7 +48,7 @@ int main(int argc, char** argv){
 
         tag_descriptor_array[i] = syscall(134,i+1,CREATE,PERM_ALL);
         if(tag_descriptor_array[i] == -1){
-            printf("Errore durante la creazione del tag service con chiave %d\n",10*i);
+            printf("Error in tag service creation for tag service with key: %d\n",10*i);
         }
 
     }
@@ -123,6 +137,17 @@ int main(int argc, char** argv){
         pthread_join(tid[i], 0);
     }
 
+
+    for (i=0;i<RECEIVERS/100;i++){
+
+
+        ret= syscall(177,tag_descriptor_array[i],REMOVE);
+        if(ret == -1){
+            printf("Error removing tag service with tag descriptor: %d\n",tag_descriptor_array[i]);
+        }
+
+    }
+    
 
     return 0;
 	

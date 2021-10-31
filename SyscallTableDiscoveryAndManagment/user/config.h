@@ -24,6 +24,10 @@
 #define RECEIVERS 10000
 #define SENDERS 1000
 
+char *buffer = "PIPPO PLUTO PAPERINO MINNIE ZIOPAPERONE QUI QUO QUA";
+
+int atomic_tests_counter = 0;
+
 
 struct thread_arguments{
 
@@ -33,3 +37,6 @@ struct thread_arguments{
     size_t size;
     int thread_id;
 };
+
+
+void* receive(struct thread_arguments *the_struct);

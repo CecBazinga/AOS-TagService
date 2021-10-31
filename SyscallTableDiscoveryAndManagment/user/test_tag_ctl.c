@@ -1,16 +1,6 @@
 #include "config.h"
 
 
-void* receive(struct thread_arguments *the_struct){
-
-    //printf("Thread: %d. Before receive buffer is :%s\n", the_struct->thread_id, the_struct->buffer);
-    syscall(174,the_struct->tag, the_struct->level, the_struct->buffer, the_struct->size); 
-    printf("Thread: %d. After receive buffer is :%s\n", the_struct->thread_id, the_struct->buffer);
-
-    pthread_exit(NULL);
-}
-
-
 int main(int argc, char** argv){
 
     int i, ret, tag_id;
@@ -79,7 +69,7 @@ int main(int argc, char** argv){
         printf("Error: remove should fail because there are threads waiting on this tag %d!\n", tag_id);
     }
 
-    /*
+    
     // awake all con receivers nel tag service: dovrebbe svegliare i thread su tutti i livelli
     ret = syscall(177,tag_id,AWAKE_ALL);
     if(ret == -1){
@@ -99,7 +89,7 @@ int main(int argc, char** argv){
     }else if(ret == 0){
         printf("Correct: removed successfully tag %d !\n", tag_id);
     }
-    */
+    
 
     // attessa dei thread receivers
     for(i=0;i<RECEIVERS/100;i++){
