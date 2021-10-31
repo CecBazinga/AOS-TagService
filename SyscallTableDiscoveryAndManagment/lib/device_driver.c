@@ -122,17 +122,17 @@ static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) 
 
 char *concat(char *buff1, char *buff2) {
    
-    // Determine new size
+    // determino la nuova dimensione del buffer
     int new_size = strlen(buff1) + strlen(buff2) + 1; 
 
-    // Allocate new buffer
+    // alloco il nuovo buffer
     char * newBuffer = kmalloc(sizeof(char)*new_size, GFP_KERNEL);
     if(newBuffer == NULL){
         printk(KERN_ERR "%s: Error during device driver buffer allocation! \n", MODNAME);
         return NULL;
     }
 
-    // do the copy and concat
+    // copio e concateno i buffer in un unico buffer
     strcpy(newBuffer,buff1);
     strcpy(newBuffer,buff2); 
 
