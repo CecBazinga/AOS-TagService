@@ -16,7 +16,29 @@ struct tag *tags[TAGS] = { NULL };
 
 //TODO: definire un unico modname in qualche header file
 
+//TODO: device driver e testarlo
+
+//TODO: testare in concorrenza le create e ctl
+
 //TODO: descrizione funzioni, commenti, pulizia codice
+
+
+struct tag **get_tag_array_ptr(void){
+
+    return tags;
+}
+
+
+struct tag_descriptor_info **get_tag_info_array_ptr(void){
+
+    return tag_descriptors_info_array;
+}
+
+
+struct rwlock_t *get_tag_lock_array_ptr(void){
+
+    return lock_array;
+}
 
 
 // funzione che inizializza l'array per le info dei singoli tag service e l'array di rwlocks
