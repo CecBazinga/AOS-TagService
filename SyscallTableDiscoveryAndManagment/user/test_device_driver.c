@@ -1,9 +1,16 @@
+/*-------------------------------------------------------------- 
+                 File di test del device driver    
+--------------------------------------------------------------*/
+
 #include "config.h"
 
+
+/* routine dei threads per la ricezione dei messaggi  */
 void* receive(struct thread_arguments *the_struct){
 
     int ret;
 
+    // syscall di receive del modulo
     ret = syscall(174,the_struct->tag, the_struct->level, the_struct->buffer, the_struct->size); 
     if(ret != 0){
         printf("Thread: %d. Something went wrong during receive\n", the_struct->thread_id);
@@ -16,6 +23,8 @@ void* receive(struct thread_arguments *the_struct){
 
 
 
+
+/* routine dei threads per l'utilizzo concorrente del device driver  */
 void* read_device(struct thread_arguments *the_struct){
 
     int ret, fd;
@@ -27,6 +36,7 @@ void* read_device(struct thread_arguments *the_struct){
         pthread_exit(NULL);
     }
 
+    // allocazione del buffer su cui trasferire i dati letti grazie al device driver
     char *content = malloc(sizeof(char) * USER_DEVICE_BUFF);
     memset(content, 0, sizeof(char) * USER_DEVICE_BUFF);
     if (content == NULL) {
@@ -34,6 +44,8 @@ void* read_device(struct thread_arguments *the_struct){
         pthread_exit(NULL);
 
     }else{
+
+        // lettura dei dati
         ret = read(fd, content, USER_DEVICE_BUFF);
         if (ret < 0){
             printf("Error during read from thread %d\n", the_struct->thread_id);
@@ -42,12 +54,14 @@ void* read_device(struct thread_arguments *the_struct){
         }
     }
 
+    // deallocazione del buffer e successiva riallocazione per testare l'aggiornamento della read del device all'interno di un'unica sessione di lavoro
     free(content);
     content = malloc(sizeof(char) * USER_DEVICE_BUFF);
     memset(content, 0, sizeof(char) * USER_DEVICE_BUFF);
 
     while(!sync_barrier_1){}
     
+    // nuova lettura dei dati dopo che lo stato del modulo è cambiato
     ret = pread(fd, content, USER_DEVICE_BUFF,0);
     if (ret < 0){
         printf("Error during read from thread %d\n", the_struct->thread_id);
@@ -55,6 +69,7 @@ void* read_device(struct thread_arguments *the_struct){
         printf("Thread %d retrieved from device file: \n%s\n", the_struct->thread_id, content);
     }
 
+    // deallocazione del buffer e successiva riallocazione per testare l'aggiornamento della read del device all'interno di un'unica sessione di lavoro
     free(content);
     content = malloc(sizeof(char) * USER_DEVICE_BUFF);
     memset(content, 0, sizeof(char) * USER_DEVICE_BUFF);
@@ -62,7 +77,7 @@ void* read_device(struct thread_arguments *the_struct){
 
     while(!sync_barrier_2){}
     
-
+    // nuova lettura dei dati dopo che lo stato del modulo è cambiato
     ret = pread(fd, content, USER_DEVICE_BUFF,0);
     if (ret < 0){
         printf("Error during read from thread %d\n", the_struct->thread_id);
@@ -70,7 +85,7 @@ void* read_device(struct thread_arguments *the_struct){
         printf("Thread %d retrieved from device file: \n%s\n", the_struct->thread_id, content);
     }
 
-
+    // chiusura del device e fine della sessione per questo thread; deallocazione delle risorse 
     close(fd);
     free(content);
     pthread_exit(NULL);
@@ -78,7 +93,14 @@ void* read_device(struct thread_arguments *the_struct){
 }
 
 
-
+/* funzione per testare l'utilizzo del device driver in modo concorrente e per testarne il corretto funzionamento (aggiornamento) 
+   in caso di read mulitple all'interno di un'unica sessione. La funzione crea 2 tags e genera un numero di receivers che mette in
+   attesa di messaggi su vari livelli di questi tags.Genera quindi degli utilizzatori del device per leggere le informazioni del modulo.
+   Effettua una send di un messaggio su alcuni livelli dei tag al fine di modificare le informazioni del tag e di verifiacre che tali 
+   modifiche vengano osservate dagli utilizzatori del device driver. Utilizza quindi due awake all per risvegliare i threads rimasti in 
+   attesa sui due tag e verifica nuovamente che questa modifica dei dati relativi al modulo venga catturata dagli utilizzatori del device.
+   Quindi distrugge i due tag.
+*/
 int main(int argc, char** argv){
 
     sync_barrier_1 = false;
@@ -92,9 +114,7 @@ int main(int argc, char** argv){
     struct thread_arguments *the_struct[(RECEIVERS/100)+10] = { NULL };
 
 
-
-
-    // creazione tag services
+    // creazione tag 
     tag_id = syscall(134,135,CREATE,PERM_ALL);
     if(tag_id == -1){
         printf("Erro: tag create failed!\n");
@@ -143,6 +163,7 @@ int main(int argc, char** argv){
 
     sleep(10);
 
+    // syscall per la send del messaggio su un livello di un tag
     ret = syscall(156,tag_id, 2, buffer, 52);
     if(ret != 0){
         printf("Error during send!\n");
@@ -150,10 +171,9 @@ int main(int argc, char** argv){
 
     sleep(10);
     sync_barrier_1 = true;
-
-
     sleep(10);
-    // awake all con receivers nel tag service: dovrebbe svegliare i thread su tutti i livelli
+
+    // awake all di tutti i thread su tutti i livelli per ognuno dei due tag
     ret = syscall(177,tag_id,AWAKE_ALL);
     if(ret == -1){
         printf("Error: awake all failed!\n");
@@ -175,6 +195,7 @@ int main(int argc, char** argv){
     }
 	
     
+    // rimozione dei tag creati
     ret = syscall(177,tag_id,REMOVE);
     if(ret == -1){
         printf("Error: awake all failed!\n");

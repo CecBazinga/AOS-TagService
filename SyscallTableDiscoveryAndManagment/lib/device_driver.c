@@ -1,11 +1,19 @@
+/*-------------------------------------------------------------- 
+                 Device driver file     
+--------------------------------------------------------------*/
+
 #include "../include/device_driver.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alessandro Amici <a.amici@outlook.it>");
 MODULE_DESCRIPTION("TAG SERVICE");
 
+/* puntatore al buffer contenente l'header  */
 char *header;
 
+
+
+/* funzione che permette di concatenare il contenuto di due buffer in un nuovo buffer e ne ritorna il puntatore  */
 char *concat(char *buff1, char *buff2) {
    
     // determino la nuova dimensione del buffer
@@ -26,6 +34,9 @@ char *concat(char *buff1, char *buff2) {
 }
 
 
+
+
+/* funzione di inizializzazione del device driver: alloca il buffer per l'header e registra il device  */
 int init_device_driver(void){
 
     // allocazione buffer header
@@ -52,6 +63,9 @@ int init_device_driver(void){
 }
 
 
+
+
+/* funzione di cleanup del device driver: dealloca il buffer per l'header e deregistra il device  */
 void free_device_driver(void){
 
     // deallocazione buffer header
@@ -66,42 +80,49 @@ void free_device_driver(void){
 }
 
 
+
+/* funzione di apertura del device driver: non implementa nulla  */
 static int dev_open(struct inode *inode, struct file *file) {
 
-   // device opened by a default nop
    printk(KERN_INFO"%s: Device file with major %d successfully opened!\n",MODNAME,major);
    return 0;
 }
 
 
+
+/* funzione di chiusura del device driver: non implementa nulla  */
 static int dev_release(struct inode *inode, struct file *file) {
 
-   // device closed by default nop
    printk(KERN_INFO"%s: Device file with major %d succesfully closed!\n",MODNAME,major);
    return 0;
 
 }
 
 
+
+/* funzione di scrittura sul device driver: non implementa nulla poichè il device è usato esclusivamente per accessi in lettura */
 static ssize_t dev_write(struct file *filp, const char *buff, size_t len, loff_t *off) {
 
-  // write not implemented cause this device is read only
   printk(KERN_INFO"%s: Device file with major %d is read only: no write enabled!\n",MODNAME,major);
   return -1;
 
 }
 
 
+
+/* funzione di lettura del device driver: permette di consultare i dati relativi al modulo montato e di fornirli in output agi utilizzatori dello stesso */
 static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) {
 
     printk("%s: Device file with major %d: a read operation has been called!\n",MODNAME,major);
 
     int i, j, ret, buffer_size;
 
+    // puntatori alle strutture comuni del tag service
     struct tag_descriptor_info **tags_info_array = get_tag_info_array_ptr();
     rwlock_t *locks_array = get_tag_lock_array_ptr();
     struct tag **tags_array = get_tag_array_ptr();
 
+    // buffer utilizzati per il recupero dei dati dal tag service e per la creazione del buffer finale contenente tutte le informazioni
     buffer_size = 0;
     char *final_buffer = NULL;
     char *old_buffer = header;
@@ -112,6 +133,8 @@ static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) 
     }
     
 
+
+    // routine per l'accesso a tutti i tag e loro livelli per consultare le informazioni del tag service
     for(i=0; i<TAGS; i++){
 
         // prendo il lock in lettura sul tag 
@@ -125,6 +148,7 @@ static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) 
 
                 spin_lock(&(tags_array[i]->levels_locks[j]));
 
+                // costruisco la riga del device contenete le informazioni relative al livello in esame
                 if(tags_array[i]->levels[j] != NULL){
 
                     if(tags_info_array[i]->key == 0){
@@ -143,7 +167,7 @@ static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) 
                         return -1;
                     }
 
-                    // concateno la nuova riga contenente le informazioni del livello con le informazioni degli altri tag e livelli 
+                    // concateno la nuova riga contenente le informazioni del livello con le informazioni ottenute precedentemente 
                     final_buffer = concat(old_buffer, single_level_buffer);
 
                     // libero il vecchio buffer allocato in precedenza
@@ -170,12 +194,11 @@ static ssize_t dev_read(struct file *filp, char *buff, size_t len, loff_t *off) 
     // libero il buffer di appoggio per generare le info relative ai singoli livelli
     kfree(single_level_buffer);
 
-    // trasferisco le info generate verso lo user space
+    // effettuo dei controlli sulle dimensioni dei buffer e sugli offset e trasferisco le info generate verso lo user space
     if(final_buffer != NULL){
         buffer_size = strlen(final_buffer);
     }
     
-
     if(len > buffer_size){
         len = buffer_size;
     }

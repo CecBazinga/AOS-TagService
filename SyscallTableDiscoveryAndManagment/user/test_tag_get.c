@@ -1,15 +1,21 @@
+/*-------------------------------------------------------------- 
+                 File di test della syscall tag_get    
+--------------------------------------------------------------*/
+
 #include "config.h"
 
+/* funzione per testare tutte le possibili combinazioni dei parmatri nell'uso della tag_get.Crea il massimo numero 
+   di tag possibili sia con chiavi private che pubbliche, sia accessibili al solo utente creatore del tag (permessi ristretti) 
+   che a tutti gli utenti (permessi estesi) e testa il funzionamento delle possibili combinazioni del comando open sui tag creati.
+   Quindi rimuove i tag creati. */
 int main(int argc, char** argv){
 	
 	int i, ret;
 	int tag_descriptors[TAGS];
-	// testing tag get
 
 	// testing combinazioni per la creazione
 	for(i=0;i<TAGS; i ++){
 
-		//printf("working with i: %d",i);
 		if(i<64){
 
 			tag_descriptors[i] = syscall(134,IPC_PRIVATE,CREATE,PERM_NONE);

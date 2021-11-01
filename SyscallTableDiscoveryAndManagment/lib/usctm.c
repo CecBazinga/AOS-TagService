@@ -19,6 +19,10 @@
 * @date November 22, 2020
 */
 
+/*-------------------------------------------------------------- 
+                       Usctm file     
+--------------------------------------------------------------*/
+
 #include "../include/usctm.h"
 
 MODULE_LICENSE("GPL");
@@ -117,10 +121,6 @@ static unsigned long sys_tag_receive = (unsigned long) __x64_sys_tag_receive;
 static unsigned long sys_tag_ctl = (unsigned long) __x64_sys_tag_ctl;	
 #else
 #endif
-
-
-
-
 
 
 
@@ -236,13 +236,14 @@ unprotect_memory(void)
 
 
 
+/* funzione di inizializzazione del modulo */
 int init_module(void) {
 	
 	int i,j;
 		
     printk("%s: initializing...\n",MODNAME);
 
-	// inizializzazione tag service
+	// inizializzazione tag service 
 	int res = init_tag_service();
 	if(res!=0){
 		printk(KERN_ERR "%s: failed to initialize_tag_service_structures\n",MODNAME);
@@ -257,7 +258,7 @@ int init_module(void) {
 	}
 	
 
-	// inserimento syscall nella syscall table
+	// inserimento syscalls nella syscall table
 	syscall_table_finder();
 
 	if(!hacked_syscall_tbl){
@@ -296,6 +297,8 @@ int init_module(void) {
 }
 
 
+
+/* funzione di cleanup del modulo */
 void cleanup_module(void) {
                 
 

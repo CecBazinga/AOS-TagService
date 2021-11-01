@@ -1,3 +1,7 @@
+/*-------------------------------------------------------------- 
+                 Usctm header file     
+--------------------------------------------------------------*/
+
 #define EXPORT_SYMTAB
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -56,7 +60,11 @@ module_param_array(free_entries,int,NULL,0660);//default array size already know
 
 extern int sys_vtpmo(unsigned long vaddr);
 
+
+/* riferimento alle funzioni definite nel file syscall.h ed implementate nel file syscall.c */
+
 extern int init_tag_service(void);
+
 extern void free_tag_service(void);
 
 extern int tag_get(int key, int command, int permission);
@@ -66,6 +74,9 @@ extern int tag_send(int tag, int level, char* buffer, size_t size);
 extern int tag_receive(int tag, int level, char* buffer, size_t size);
 
 extern int tag_ctl(int tag, int command);
+
+
+/* riferimento alle funzioni definite nel file device_driver.h ed implementate nel file device_driver.c */
 
 extern int init_device_driver(void);
 
