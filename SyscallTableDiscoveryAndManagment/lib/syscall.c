@@ -8,45 +8,69 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alessandro Amici <a.amici@outlook.it>");
 MODULE_DESCRIPTION("TAG SERVICE");
 
+
+/* strutture dati */
+
+
+/* array che mantiene la mappa dei tag in uso e quelli liberi, indicando anche la natura del tag (privata o pubblica)  */
 int tag_descriptors_header_list[TAGS] = {[0 ... (TAGS-1)] -1};
+
+/* spinlock associato alla mappa dei tag liberi od in uso  */
 spinlock_t tag_descriptors_header_lock;
 
 
+/* array che mantiene i puntatori alle strutture dati contenti le informazioni di ogni tag  */
 struct tag_descriptor_info *tag_descriptors_info_array[TAGS] = { NULL };
-rwlock_t lock_array[TAGS];
+
+/* array che mantiene i puntatori alle strutture dati utilizzate per implementare i tag */
 struct tag *tags[TAGS] = { NULL };
 
+/* array di lock read_write per l'accesso alle strutture dati dei tag e quelle contenenti le loro informazioni */
+rwlock_t lock_array[TAGS];
 
+
+
+
+
+/* funzioni utils */
+
+
+/* funzione che ritorna il puntatore all'array dei tag */
 struct tag** get_tag_array_ptr(void){
 
     return tags;
 }
 
 
+/* funzione che ritorna il puntatore all'array delle informazioni dei tag */
 struct tag_descriptor_info** get_tag_info_array_ptr(void){
 
     return tag_descriptors_info_array;
 }
 
 
+/* funzione che ritorna il puntatore all'array dei lock read_write relativi ai tag */
 rwlock_t* get_tag_lock_array_ptr(void){
 
     return lock_array;
 }
 
 
-// funzione che inizializza l'array per le info dei singoli tag service e l'array di rwlocks
+/* funzione che alloca ed inizializza le strutture dati necessarie al modulo (l'array per le info dei singoli tag service e l'array di rwlocks) */
 int init_tag_service(void){
 
     int i;
 
     for(i=0; i<TAGS; i++){
 
+        // allocazione strutture dati per il mantenimento delle informazioni dei tag
         tag_descriptors_info_array[i] = kzalloc(sizeof(struct tag_descriptor_info), GFP_KERNEL);
         if(tag_descriptors_info_array[i] == NULL){
             printk(KERN_ERR "%s: Error during tag service structure allocation! \n", MODNAME);
             return -1;
         }
+
+        // inizializzazione valori 
         tag_descriptors_info_array[i]->key = -1;
         tag_descriptors_info_array[i]->perm = -1;
 
@@ -60,6 +84,7 @@ int init_tag_service(void){
 
 
 
+/* funzione che dealloca le strutture dati relative al modulo */
 void free_tag_service(void){
 
     int i,j;
@@ -68,6 +93,7 @@ void free_tag_service(void){
 
         if(tag_descriptors_info_array[i] != NULL){
 
+            // deallocazione delle strutture dati per le informazioni dei tag
             kfree(tag_descriptors_info_array[i]); 
             tag_descriptors_info_array[i] = NULL;
 
@@ -75,6 +101,7 @@ void free_tag_service(void){
               
                 for(j=0;j<LEVELS;j++){
 
+                    // deallocazione dei livelli (generalmente superflua perchè operata dai receivers)
                     if(tags[i]->levels[j] != NULL){
 
                         if(tags[i]->levels[j]->buffer != NULL){
@@ -85,6 +112,7 @@ void free_tag_service(void){
                     }
                 }
 
+                // deallocazione delle strutture dati relative ai tag veri e propri
                 kfree(tags[i]);
                 tags[i] = NULL;
             }
@@ -97,11 +125,12 @@ void free_tag_service(void){
 
 
 
-
+/* funzione che permette la creazione della struttura dati realtiva al tag */
 struct tag* create_tag(void){
 
     int i;
 
+    // allocazione della struttura dati relativa al tag
     struct tag *the_tag = kzalloc(sizeof(struct tag), GFP_KERNEL);
 
     // errore durante l'allocazione di memoria
@@ -121,11 +150,14 @@ struct tag* create_tag(void){
 
 
 
+/* funzione che permette di creare un nuovo tag: popola la struttura relativa alle informazioni del tag con i valori di creazione di quest
+   ultimo e chiama la funzione di creazione della stuttura dati relativa al tag vero e proprio*/
 int insert_tag_descriptor(int key, int tag_descriptor, int permission){
 
     // accedo alla struct corrispondente per inserire i valori della create 
     write_lock(&lock_array[tag_descriptor]);
 
+    // controllo che le strutture dati associate al tag non siano popolate
     if(tag_descriptors_info_array[tag_descriptor]->key != -1){
 
         write_unlock(&lock_array[tag_descriptor]);
@@ -155,8 +187,11 @@ int insert_tag_descriptor(int key, int tag_descriptor, int permission){
 
 
 
+
+/* funzione che controlla i permessi associati ad un tag */
 int check_tag_permission(int tag_descriptor){
 
+    // caso in cui il tag è accessibile solo all'utente creatore dello stesso
     if(tag_descriptors_info_array[tag_descriptor]->perm == 0){
 
         if(tag_descriptors_info_array[tag_descriptor]->euid.val == get_current_user()->uid.val){
@@ -166,7 +201,9 @@ int check_tag_permission(int tag_descriptor){
             return -1;
         }
             
-    }else if(tag_descriptors_info_array[tag_descriptor]->perm == 1){
+    }
+    // caso in cui il tag è accessibile a tutti gli utenti
+    else if(tag_descriptors_info_array[tag_descriptor]->perm == 1){
 
         return tag_descriptor;
 
@@ -177,13 +214,16 @@ int check_tag_permission(int tag_descriptor){
 }
 
 
+
+/* funzione utilizzata per deallocare un livello relativo ad un tag e liberarne le risorse (chiamata solo dai receivers) */
 void remove_and_deallocate_level(int tag, int level){
 
     spin_lock(&(tags[tag]->levels_locks[level]));
-        
+
+    // decremento il numero di receivers in attesa sul livello    
     tags[tag]->levels[level]->threads_waiting --;
 
-    // se sono l'ultimo receiver rimasto dealloco le strutture dati del livello
+    // se sono l'ultimo receiver rimasto dealloco le strutture dati del livello e ne imposto il puntatore nell'array del tag a null
     if(tags[tag]->levels[level]->threads_waiting == 0){
 
         if(tags[tag]->levels[level]->buffer != NULL){
@@ -202,33 +242,43 @@ void remove_and_deallocate_level(int tag, int level){
 
 
 
-
+/* funzione che permette di creare tag o di aprire tag già esistenti.
+   Il comando CREATE è usato per la creazione dei tag, mentre OPEN per l'apertura di tag pubblici precedentemente creati.
+   L'apertura di tag privati non è consentita. La chiave viene fornita dall'utente ed è un valore intero positivo: il valore 0
+   indica una chiave privata che non può essere usata per aprire il tag ma solo per creare tag privati. Un valore della chiave
+   strettamente positivo è associato ai tag pubblici e viene utilizzato nella open per aprire il tag corrispondente (se creato in 
+   precedenza).I permessi indicano, nella fase di creazione del tag, se questo possa essere accessibile al solo utente creatore del
+   tag o anche agli altri utenti. */
 int tag_get(int key, int command, int permission){
 
     int i;
     int tag_descriptor = -1;
 
+    // controllo dei valori del comando
     if (command != OPEN && command != CREATE){
         printk(KERN_ERR "%s: Invalid command flag: chose one of OPEN or CREATE! \n", MODNAME);
         return -1;
     }
 
+    // controllo dei valori del permesso
     if (permission != PERM_NONE && permission != PERM_ALL){
         printk(KERN_ERR "%s: Invalid permission flag: chose one of PERM_NONE or PERM_ALL! \n", MODNAME);
         return -1;
     }
 
 
+    // caso della chiave privata
     if (key == IPC_PRIVATE){
 
         printk(KERN_INFO "%s: Macro IPC_PRIVATE value is : %d \n", MODNAME, key);
     
-
+        // la open su chiave privata non è permessa
         if(command == OPEN){
             printk(KERN_ERR "%s: Cannot open a tag-service with IPC_PRIVATE key! \n", MODNAME);
             return -1;
         }
 
+        // creazione del tag con chiave privata 
         if(command == CREATE){
 
             // recupero del primo slot libero per un nuovo tag-service
@@ -253,14 +303,18 @@ int tag_get(int key, int command, int permission){
                 return -1;
             }
 
+            // creazione del nuovo tag e strutture dati associate
             return insert_tag_descriptor(key,tag_descriptor,permission);
         }
 
         return -1;
 
 
-    }else if (key > 0){
+    }
+    // caso della chiave pubblica
+    else if (key > 0){
 
+        // creazione del tag con chiave pubblica 
         if(command == CREATE){
 
             spin_lock(&tag_descriptors_header_lock);
@@ -291,10 +345,11 @@ int tag_get(int key, int command, int permission){
             tag_descriptors_header_list[tag_descriptor] = key;
             spin_unlock(&tag_descriptors_header_lock);
 
-            // accedo alla struct corrispondente per inserire i valori della create
+            // creazione del nuovo tag e strutture dati associate
             return insert_tag_descriptor(key,tag_descriptor,permission);
         }
 
+        // apertura del tag con chiave pubblica 
         if(command == OPEN){
 
             // controllo che la chiave esista
@@ -354,6 +409,8 @@ int tag_get(int key, int command, int permission){
 
 
 
+/* funzione che permette di inviare un messaggio su un dato livello di un dato tag in modo non bloccante, trasferendo i dati
+   dal livello user al livello kernel. */
 int tag_send(int tag, int level, char* buffer, size_t size){
 
     // controllo il valore della size
@@ -445,7 +502,8 @@ int tag_send(int tag, int level, char* buffer, size_t size){
 
 
 
-
+/* funzione che permette di mettersi in ascolto per un messaggio su un dato livello di un dato tag in modo bloccante, trasferendo i dati
+   dal livello kernel al livello user. */
 int tag_receive(int tag, int level, char* buffer, size_t size){
 
     // controllo il valore della size
@@ -500,7 +558,7 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
         tags[tag]->levels[level]->threads_waiting ++; 
     }
 
-    // libero il lock
+    // libero il lock esclusivo sul livello
     spin_unlock(&(tags[tag]->levels_locks[level]));
 
     //rilascio il read lock sulla cella del tag service info
@@ -512,18 +570,24 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
     wait_event_interruptible(tags[tag]->levels[level]->wq, tags[tag]->levels[level]->awake == 1);
 
     // routine di copia del buffer da eseguire al risveglio dalla waitqueue
+
+    // risveglio dovuto ad un segnale
     if(tags[tag]->levels[level]->awake == 0){
         
+        // controllo se sia necessario deallocare il livello
         remove_and_deallocate_level(tag, level);
 
         printk(KERN_INFO "%s: thread %d exiting sleep on tag %d and level %d due to a signal\n",MODNAME, current->pid, tag, level);
         return 0;
 
-    }else if(tags[tag]->levels[level]->awake == 1){
+    }
+    // risveglio dovuto all'invio di un messaggio oppure ad una awake all
+    else if(tags[tag]->levels[level]->awake == 1){
 
         // risveglio dovuto ad un awake all
         if(tags[tag]->levels[level]->buffer == NULL){
 
+            // controllo se sia necessario deallocare il livello
             remove_and_deallocate_level(tag, level);
 
             printk(KERN_INFO "%s: thread %d exiting sleep on tag %d and level %d due to an awake all syscall!\n",MODNAME, current->pid, tag, level);
@@ -536,18 +600,18 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
         
         if(copied != 0){
 
-            //kfree(message);
+            // controllo se sia necessario deallocare il livello
+            remove_and_deallocate_level(tag, level);
 
             printk(KERN_ERR "%s: Error copying message to user space for thread %d on tag %d and level %d\n",MODNAME, current->pid, tag, level);
-
-            remove_and_deallocate_level(tag, level);
             
             return -1;
         }
 
-        printk(KERN_INFO "%s: Message red from tag %d on level %d from thread %d\n",MODNAME, tag, level, current->pid);
-
+        // controllo se sia necessario deallocare il livello
         remove_and_deallocate_level(tag, level);
+
+        printk(KERN_INFO "%s: Message red from tag %d on level %d from thread %d\n",MODNAME, tag, level, current->pid);
             
         return 0;
 
@@ -565,12 +629,13 @@ int tag_receive(int tag, int level, char* buffer, size_t size){
 
 
 
-
-
+/* funzione che permette di gestire un tag: se il comando è REMOVE permette di rimuovere il tag (se questo non è in uso ad opera di altri thread);
+   se il comando è AWAKE_ALL permette di risvegliare tutti i thread bloccati in attesa di un messaggio su questo tag, indipendentemente dal livello. */
 int tag_ctl(int tag, int command){
 
     int i;
 
+    // controllo sui valori del comando
     if (command != AWAKE_ALL && command != REMOVE){
         printk(KERN_ERR "%s: Invalid command flag: chose one of AWAKE_ALL or REMOVE! \n", MODNAME);
         return -1;
@@ -593,17 +658,20 @@ int tag_ctl(int tag, int command){
         return -1;
     }
 
-    // procedo al risveglio dei thread in attesa su ogni livello del tag service
+    // caso del risveglio dei thread in attesa su ogni livello del tag service
     if(command == AWAKE_ALL){
 
         for(i=0;i<LEVELS;i++){
-
+            
             spin_lock(&(tags[tag]->levels_locks[i]));
 
             // se il livello esiste, risveglio la sua waitqueue
             if(tags[tag]->levels[i] != NULL){
 
+                // impostazione della condizione di risveglio
                 tags[tag]->levels[i]->awake = 1;
+
+                // risveglio dei threads
                 wake_up_all(&(tags[tag]->levels[i]->wq));
                 spin_unlock(&(tags[tag]->levels_locks[i]));
 
@@ -612,15 +680,20 @@ int tag_ctl(int tag, int command){
             }
         }
 
+        // rilascio del lock condiviso sul tag
         read_unlock(&lock_array[tag]);
 
         printk(KERN_INFO "%s: Succesfully awoken all receivers threads on tag %d! \n", MODNAME, tag);
 
         return 0;
 
-    }else if( command == REMOVE){
+    }
+    // caso  della rimozione del tag
+    else if( command == REMOVE){
 
         read_unlock(&lock_array[tag]);
+
+        // prendo un lock esclusivo sul tag per evitare il sopraggiungere di ulteriori threads
         write_lock(&lock_array[tag]);
 
         for(i=0;i<LEVELS;i++){
@@ -630,6 +703,7 @@ int tag_ctl(int tag, int command){
             // controllo che non ci siano thread in attesa su questo tag
             if(tags[tag]->levels[i] != NULL){
 
+                // se il tag è in uso la rimozione fallisce
                 spin_unlock(&(tags[tag]->levels_locks[i]));
                 write_unlock(&lock_array[tag]);
                 printk(KERN_ERR "%s: Error removing tag %d: unable to remove: this tag is currently being used! \n", MODNAME, tag);
@@ -655,6 +729,7 @@ int tag_ctl(int tag, int command){
         tag_descriptors_header_list[tag] = -1;
         spin_unlock(&tag_descriptors_header_lock);
 
+        // rilascio il lock esclusivo sul tag
         write_unlock(&lock_array[tag]);
 
         printk(KERN_INFO "%s: Tag %d was succesfully removed! \n", MODNAME, tag);
